@@ -1,0 +1,241 @@
+C:\Users\Ir John Peter\Downloads\Mariageplus-mainimport 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../src/theme/app_theme.dart';
+import '../../../../src/wedding/wedding_api.dart';
+import '../../../../src/wedding/wedding_providers.dart';
+import '../../shared/widgets/app_fields.dart';
+
+/// Formulaire de création d'un événement (ORGANISATEUR).
+/// Utilise le type réel du backend (EventType) et CreateWeddingRequest.
+/// NB : le backend exige les prénoms ET les noms non vides (@NotBlank),
+/// c'est pourquoi ce formulaire collecte les deux pour chaque personne.
+class EvenementCreateScreen extends ConsumerStatefulWidget {
+  const EvenementCreateScreen({super.key});
+
+  @override
+  ConsumerState<EvenementCreateScreen> createState() =>
+      _EvenementCreateScreenState();
+}
+
+class _EvenementCreateScreenState extends ConsumerState<EvenementCreateScreen> {
+  final _formKey = GlobalKey<FormState>();
+
+  final _nameA = TextEditingController(); // prénom marié / nom principal
+  final _nameALast = TextEditingController(); // nom marié / *
+  final _nameB = TextEditingController(); // prénom mariée / nom secondaire
+  final _nameBLast = TextEditingController(); // nom mariée / *
+  final _description = TextEditingController();
+  final _welcome = TextEditingController();
+
+  EventType? _type;
+  bool _submitting = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _nameA.dispose();
+    _nameALast.dispose();
+    _nameB.dispose();
+    _nameBLast.dispose();
+    _description.dispose();
+    _welcome.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_type == null) {
+      setState(() => _error = 'Sélectionnez un type d\u2019événement');
+      return;
+    }
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    try {
+      await ref.read(weddingApiProvider).create(CreateWeddingRequest(
+            groomFirstName: _nameA.text.trim(),
+            groomLastName: _nameALast.text.trim(),
+            brideFirstName: _nameB.text.trim(),
+            brideLastName: _nameBLast.text.trim(),
+            description:
+                _description.text.trim().isEmpty ? null : _description.text.trim(),
+            welcomeMessage:
+                _welcome.text.trim().isEmpty ? null : _welcome.text.trim(),
+            eventType: _type!,
+          ));
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Nouvel événement'),
+        automaticallyImplyLeading: true,
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildTypeSelector(),
+                const SizedBox(height: 24),
+                AppTextField(
+                  label: _nameALabel(),
+                  controller: _nameA,
+                  hint: 'Ex. Patrick',
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                ),
+                const SizedBox(height: 16),
+                AppTextField(
+                  label: _nameALastLabel(),
+                  controller: _nameALast,
+                  hint: 'Ex. Dupont',
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                ),
+                const SizedBox(height: 16),
+                AppTextField(
+                  label: _nameBLabel(),
+                  controller: _nameB,
+                  hint: 'Ex. Gr\u00e2ce',
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                ),
+                const SizedBox(height: 16),
+                AppTextField(
+                  label: _nameBLastLabel(),
+                  controller: _nameBLast,
+                  hint: 'Ex. Martin',
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                ),
+                const SizedBox(height: 16),
+                AppTextField(
+                  label: 'Description',
+                  controller: _description,
+                  hint: 'Détails de l\u2019événement',
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 16),
+                AppTextField(
+                  label: 'Message de bienvenue',
+                  controller: _welcome,
+                  hint: 'Optionnel',
+                  maxLines: 2,
+                ),
+                if (_error != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    _error!,
+                    textAlign: TextAlign.center,
+                    style: AppTypography.small(color: OrganizerColors.danger),
+                  ),
+                ],
+                const SizedBox(height: 24),
+                FilledButton(
+                  onPressed: _submitting ? null : _submit,
+                  child: _submitting
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2.4),
+                        )
+                      : const Text('Créer l\u2019événement'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+        _error = 'Impossible de créer l\u2019événement';
+      });
+    }
+  }
+
+
+  String _nameALabel() =>
+      _type == EventType.wedding ? 'Prénom du marié' : 'Nom principal';
+  String _nameALastLabel() =>
+      _type == EventType.wedding ? 'Nom du marié' : 'Nom de famille';
+  String _nameBLabel() =>
+      _type == EventType.wedding ? 'Prénom de la mariée' : 'Nom secondaire';
+  String _nameBLastLabel() =>
+      _type == EventType.wedding ? 'Nom de la mariée' : 'Nom de famille';
+
+  Widget _buildTypeSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Type d\u2019événement',
+          style: AppTypography.small().copyWith(fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            _typeChip(EventType.wedding, 'Mariage', '\u{1F48D}'),
+            _typeChip(EventType.birthday, 'Anniversaire', '\u{1F382}'),
+            _typeChip(EventType.graduation, 'Graduation', '\u{1F393}'),
+            _typeChip(EventType.party, 'F\u00eate', '\u{1F389}'),
+            _typeChip(EventType.conference, 'Conf\u00e9rence', '\u{1F4BC}'),
+            _typeChip(EventType.other, 'Autre', '\u2728'),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _typeChip(EventType type, String label, String emoji) {
+    final scheme = Theme.of(context).colorScheme;
+    final selected = _type == type;
+    return InkWell(
+      onTap: () => setState(() => _type = type),
+      borderRadius: BorderRadius.circular(AppRadius.field),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadius.field),
+          color: selected ? scheme.primary : scheme.surface,
+          border: Border.all(
+            color: selected ? scheme.primary : scheme.outline,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 16)),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: AppTypography.small(
+                color: selected ? Colors.white : scheme.onSurface,
+              ).copyWith(fontWeight: FontWeight.w600),
+            ),
+            if (selected) ...[
+              const SizedBox(width: 4),
+              const Icon(Icons.check, color: Colors.white, size: 16),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -1,0 +1,128 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../src/auth/auth_providers.dart';
+import '../../../../src/auth/auth_models.dart';
+import '../../../../src/theme/app_theme.dart';
+import '../../shared/widgets/app_organizer_bottom_nav.dart';
+import 'evenement_create_screen.dart';
+import 'organisateur_dashboard_tab.dart';
+
+/// Coque de navigation de l'espace ORGANISATEUR (bottom nav + central +).
+class OrganisateurHomeScreen extends ConsumerStatefulWidget {
+  const OrganisateurHomeScreen({super.key});
+
+  @override
+  ConsumerState<OrganisateurHomeScreen> createState() =>
+      _OrganisateurHomeScreenState();
+}
+
+class _OrganisateurHomeScreenState
+    extends ConsumerState<OrganisateurHomeScreen> {
+  OrganizerTab _tab = OrganizerTab.home;
+
+  @override
+  Widget build(BuildContext context) {
+    final canCreate =
+        ref.read(authControllerProvider).hasPermission(PermissionCodes.weddingCreate);
+    return Scaffold(
+      body: IndexedStack(
+        index: _tab.index,
+        children: const [
+          OrganisateurDashboardTab(),
+          _GuestsTab(),
+          SizedBox.shrink(), // add -> opens create screen
+          _CalendarTab(),
+          _MoreTab(),
+        ],
+      ),
+      floatingActionButton:
+          _tab == OrganizerTab.home && canCreate ? _buildFab() : null,
+      bottomNavigationBar: AppOrganizerBottomNav(
+        current: _tab,
+        onSelect: _onSelect,
+      ),
+    );
+  }
+
+  Widget _buildFab() {
+    return FloatingActionButton.extended(
+      onPressed: _openCreate,
+      backgroundColor: OrganizerColors.primary,
+      icon: const Icon(Icons.add, color: Colors.white, size: 22),
+      label: const Text(
+        'Nouveau',
+        style: TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+          fontSize: 15,
+        ),
+      ),
+    );
+  }
+
+  void _onSelect(OrganizerTab tab) {
+    if (tab == OrganizerTab.add) {
+      _openCreate();
+      return;
+    }
+    setState(() => _tab = tab);
+  }
+
+  void _openCreate() {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.outline,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            ListTile(
+              leading:
+                  const Icon(Icons.event_outlined, color: OrganizerColors.primary),
+              title: const Text('Créer un événement'),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const EvenementCreateScreen()),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GuestsTab extends StatelessWidget {
+  const _GuestsTab();
+  @override
+  Widget build(BuildContext context) {
+    return const Center(child: Text('Invités (à venir)'));
+  }
+}
+
+class _CalendarTab extends StatelessWidget {
+  const _CalendarTab();
+  @override
+  Widget build(BuildContext context) {
+    return const Center(child: Text('Calendrier (à venir)'));
+  }
+}
+
+class _MoreTab extends StatelessWidget {
+  const _MoreTab();
+  @override
+  Widget build(BuildContext context) {
+    return const Center(child: Text('Plus (à venir)'));
+  }
+}
