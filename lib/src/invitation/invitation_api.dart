@@ -51,40 +51,6 @@ class QrCode {
   final String dataUri;
 }
 
-/// Requête de mise à jour administrative d'une invitation (`UpdateInvitationRequest`).
-class UpdateInvitationRequest {
-  UpdateInvitationRequest({this.status, this.sentAt, this.lastSentAt});
-
-  final String? status;
-  final String? sentAt;
-  final String? lastSentAt;
-
-  Map<String, dynamic> toJson() => {
-        if (status != null) 'status': status,
-        if (sentAt != null) 'sentAt': sentAt,
-        if (lastSentAt != null) 'lastSentAt': lastSentAt,
-      };
-}
-
-/// Réponse d'envoi / renvoi (`SendInvitationResponse`) — les champs sont
-/// récupérés souplement (le backend peut varier selon le contexte SMTP).
-class SendInvitationResponse {
-  const SendInvitationResponse({this.status, this.lastSentAt, this.emailSent, this.publicInviteUrl});
-
-  final String? status;
-  final String? lastSentAt;
-  final bool? emailSent;
-  final String? publicInviteUrl;
-
-  factory SendInvitationResponse.fromJson(Map<String, dynamic> json) =>
-      SendInvitationResponse(
-        status: json['status'] as String?,
-        lastSentAt: json['lastSentAt'] as String?,
-        emailSent: json['emailSent'] as bool?,
-        publicInviteUrl: json['publicInviteUrl'] as String?,
-      );
-}
-
 /// Client API du module invitations (+ accès public).
 class InvitationApi {
   InvitationApi({required this.api});
@@ -92,7 +58,7 @@ class InvitationApi {
   final ApiClient api;
 
   String _path(int weddingId) =>
-      '${ApiConfig.weddingsPath}/$weddingId/invitations';
+      '${ApiConfig.eventsPath}/$weddingId/invitations';
 
   /// Liste paginée des invitations (`GET .../invitations`).
   Future<List<Invitation>> list(int weddingId, {int page = 0, int size = 25}) async {
@@ -115,43 +81,5 @@ class InvitationApi {
       '${_path(weddingId)}/$invitationId/qr',
     );
     return QrCode(dataUri: json['qrDataUri'] as String? ?? '');
-  }
-
-  /// Détail (`GET .../invitations/{invitationId}`).
-  Future<Invitation> getById(int weddingId, int invitationId) async {
-    final json = await api.getJson('${_path(weddingId)}/$invitationId');
-    return Invitation.fromJson(json);
-  }
-
-  /// Mise à jour administrative (`PUT .../invitations/{invitationId}`).
-  Future<Invitation> update(int weddingId, int invitationId, UpdateInvitationRequest request) async {
-    final json = await api.putJson(
-      '${_path(weddingId)}/$invitationId',
-      request.toJson(),
-    );
-    return Invitation.fromJson(json);
-  }
-
-  /// Suppression logique (`DELETE .../invitations/{invitationId}`).
-  Future<void> delete(int weddingId, int invitationId) async {
-    await api.deleteRequest('${_path(weddingId)}/$invitationId');
-  }
-
-  /// Envoi (`POST .../invitations/{invitationId}/send`).
-  Future<SendInvitationResponse> send(int weddingId, int invitationId) async {
-    final json = await api.postJson('${_path(weddingId)}/$invitationId/send', null);
-    return SendInvitationResponse.fromJson(json);
-  }
-
-  /// Renvoi (`POST .../invitations/{invitationId}/resend`).
-  Future<SendInvitationResponse> resend(int weddingId, int invitationId) async {
-    final json = await api.postJson('${_path(weddingId)}/$invitationId/resend', null);
-    return SendInvitationResponse.fromJson(json);
-  }
-
-  /// Annulation (`POST .../invitations/{invitationId}/cancel`).
-  Future<Invitation> cancel(int weddingId, int invitationId) async {
-    final json = await api.postJson('${_path(weddingId)}/$invitationId/cancel', null);
-    return Invitation.fromJson(json);
   }
 }

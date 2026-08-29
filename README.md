@@ -1,47 +1,17 @@
-# MariagePlus (Flutter)
+# mariageplus_app
 
-Client mobile **MariagePlus** pour le backend Spring Boot `com.mariageplus`.
+A new Flutter project.
 
-## Prérequis
+## Getting Started
 
-- Flutter SDK (Dart ^3.12)
-- Backend MariagePlus joignable (port **8000** en local)
+This project is a starting point for a Flutter application.
 
-## Lancer
+A few resources to get you started if this is your first Flutter project:
 
-```bash
-flutter pub get
-flutter run
-```
+- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
+- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
+- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
 
-- Émulateur Android : API `http://10.0.2.2:8000`
-- Simulateur iOS / desktop : `http://localhost:8000`
-
-Release :
-
-```bash
-flutter build apk --dart-define=API_BASE_URL=https://votre-api
-```
-
-## Documentation
-
-- **[Reste à faire](docs/RESTE_A_FAIRE.md)** — backlog produit et technique
-
-## Structure
-
-```
-lib/
-  main.dart
-  src/
-    api/          # Dio, config URL
-    auth/         # login, session, permissions UI
-    wedding/      # événements
-    weddingevent/  # événements de mariage (cérémonies, réception, ...)
-    guest/        # invités + catégories
-    invitation/   # invitations + QR
-    table/        # plan de table
-    checkin/      # RSVP public + scan entrée
-    dashboard/
-    admin/
-    home/
-```
+For help getting started with Flutter development, view the
+[online documentation](https://docs.flutter.dev/), which offers tutorials,
+samples, guidance on mobile development, and a full API reference.

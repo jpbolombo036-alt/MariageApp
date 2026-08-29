@@ -88,46 +88,6 @@ class CheckInScan {
       );
 }
 
-/// Résultat d'un enregistrement de check-in (`CheckInResponse`).
-class CheckInResult {
-  const CheckInResult({
-    required this.checkInId,
-    required this.guestName,
-    required this.weddingDisplayName,
-    required this.invitationStatus,
-    this.rsvpStatus,
-    required this.numberOfAttendees,
-    required this.expectedAttendees,
-    required this.checkedInAttendees,
-    required this.remainingAttendees,
-    this.checkedInAt,
-  });
-
-  final int checkInId;
-  final String guestName;
-  final String weddingDisplayName;
-  final String invitationStatus;
-  final String? rsvpStatus;
-  final int numberOfAttendees;
-  final int expectedAttendees;
-  final int checkedInAttendees;
-  final int remainingAttendees;
-  final String? checkedInAt;
-
-  factory CheckInResult.fromJson(Map<String, dynamic> json) => CheckInResult(
-        checkInId: (json['checkInId'] as num?)?.toInt() ?? 0,
-        guestName: json['guestName'] as String? ?? '',
-        weddingDisplayName: json['weddingDisplayName'] as String? ?? '',
-        invitationStatus: json['invitationStatus'] as String? ?? '',
-        rsvpStatus: json['rsvpStatus'] as String?,
-        numberOfAttendees: (json['numberOfAttendees'] as num?)?.toInt() ?? 0,
-        expectedAttendees: (json['expectedAttendees'] as num?)?.toInt() ?? 0,
-        checkedInAttendees: (json['checkedInAttendees'] as num?)?.toInt() ?? 0,
-        remainingAttendees: (json['remainingAttendees'] as num?)?.toInt() ?? 0,
-        checkedInAt: json['checkedInAt'] as String?,
-      );
-}
-
 /// Client API du module RSVP public + check-in.
 class CheckInApi {
   CheckInApi({required this.api});
@@ -165,30 +125,13 @@ class CheckInApi {
   }
 
   /// Enregistrement d'un check-in (`POST /api/checkins`).
-  Future<CheckInResult> checkIn({
+  Future<Map<String, dynamic>> checkIn({
     required String qrToken,
     required int numberOfAttendees,
   }) async {
-    final json = await api.postJson(
+    return await api.postJson(
       ApiConfig.checkinsPath,
       {'qrToken': qrToken, 'numberOfAttendees': numberOfAttendees},
     );
-    return CheckInResult.fromJson(json);
   }
-
-  /// Annulation d'un check-in (`DELETE /api/checkins/{checkInId}`) — la place est recréditée.
-  Future<void> cancelCheckIn(int checkInId) async {
-    await api.deleteRequest('${ApiConfig.checkinsPath}/$checkInId');
-  }
-}
-
-/// Extrait le jeton public d'un QR : URL (`.../invitations/{token}`) ou jeton brut.
-String invitationTokenFromInput(String raw) {
-  final trimmed = raw.trim();
-  if (trimmed.isEmpty) return trimmed;
-  final uri = Uri.tryParse(trimmed);
-  if (uri != null && uri.hasScheme && uri.pathSegments.isNotEmpty) {
-    return uri.pathSegments.last;
-  }
-  return trimmed;
 }

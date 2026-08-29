@@ -1,5 +1,6 @@
 import '../api/api_client.dart';
 import '../api/api_config.dart';
+import '../wedding/wedding_api.dart' show EventType, eventTypeFromWire;
 
 /// Statistiques des invités (`GuestStatisticsResponse`).
 class GuestStats {
@@ -122,6 +123,7 @@ class Dashboard {
   const Dashboard({
     required this.weddingId,
     required this.weddingName,
+    this.eventType,
     required this.guests,
     required this.invitations,
     required this.attendance,
@@ -131,15 +133,19 @@ class Dashboard {
 
   final int weddingId;
   final String weddingName;
+  final String? eventType;
   final GuestStats guests;
   final InvitationStats invitations;
   final AttendanceStats attendance;
   final TableStats tables;
   final List<CategoryStats> categories;
 
+  EventType? get eventTypeEnum => eventTypeFromWire(eventType);
+
   factory Dashboard.fromJson(Map<String, dynamic> json) => Dashboard(
         weddingId: (json['weddingId'] as num?)?.toInt() ?? 0,
         weddingName: json['weddingName'] as String? ?? '',
+        eventType: json['eventType'] as String?,
         guests: GuestStats.fromJson(
           (json['guests'] as Map<String, dynamic>?) ?? <String, dynamic>{},
         ),
@@ -159,7 +165,7 @@ class Dashboard {
       );
 }
 
-/// Client API du dashboard (`GET /api/weddings/{id}/dashboard`).
+/// Client API du dashboard (`GET /api/events/{id}/dashboard`).
 class DashboardApi {
   DashboardApi({required this.api});
 
@@ -167,7 +173,7 @@ class DashboardApi {
 
   Future<Dashboard> getForWedding(int weddingId) async {
     final json = await api.getJson(
-      '${ApiConfig.weddingsPath}/$weddingId/dashboard',
+      '${ApiConfig.eventsPath}/$weddingId/dashboard',
     );
     return Dashboard.fromJson(json);
   }

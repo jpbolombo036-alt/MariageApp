@@ -51,9 +51,6 @@ List<String> superPermissions() => [
       PermissionCodes.invitationCreate,
       PermissionCodes.checkinCreate,
       PermissionCodes.tableCreate,
-      PermissionCodes.eventView,
-      PermissionCodes.eventCreate,
-      PermissionCodes.eventUpdate,
     ];
 
 List<String> organizatorPermissions() => [
@@ -62,7 +59,6 @@ List<String> organizatorPermissions() => [
       PermissionCodes.weddingUpdate,
       PermissionCodes.weddingDelete,
       PermissionCodes.dashboardView,
-      PermissionCodes.organizationManageMembers,
       PermissionCodes.guestView,
       PermissionCodes.guestCreate,
       PermissionCodes.guestUpdate,
@@ -71,7 +67,4 @@ List<String> organizatorPermissions() => [
       PermissionCodes.invitationView,
       PermissionCodes.invitationCreate,
       PermissionCodes.tableCreate,
-      PermissionCodes.eventView,
-      PermissionCodes.eventCreate,
-      PermissionCodes.eventUpdate,
     ];

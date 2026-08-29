@@ -48,11 +48,6 @@ class ApiClient {
     _dio.options.headers['Authorization'] = 'Bearer $token';
   }
 
-  /// Retire le Bearer (logout / session expirée).
-  void clearAccessToken() {
-    _dio.options.headers.remove('Authorization');
-  }
-
   Future<void> _restoreBearerFromStore() async {
     final token = await tokenStore.readAccessToken();
     if (token != null && token.isNotEmpty) setAccessToken(token);
@@ -116,7 +111,6 @@ class ApiClient {
         _refreshing = false;
       }
       await tokenStore.clear();
-      clearAccessToken();
       if (onSessionExpired != null) await onSessionExpired!();
     }
 
@@ -197,17 +191,5 @@ class ApiClient {
   /// POST renvoyant 204 / 200 sans corps (logout).
   Future<void> postNoContent(String path) async {
     await _dio.post<dynamic>(path);
-  }
-
-  /// Change le mot de passe de l'utilisateur connecté
-  /// (`PUT /api/users/me/password`).
-  Future<void> changePassword({
-    required String oldPassword,
-    required String newPassword,
-  }) async {
-    await _dio.put<dynamic>(
-      ApiConfig.usersMePassword,
-      data: {'oldPassword': oldPassword, 'newPassword': newPassword},
-    );
   }
 }

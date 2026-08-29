@@ -5,7 +5,6 @@ import '../auth/auth_models.dart';
 import '../auth/auth_providers.dart';
 import 'checkin_api.dart';
 import 'checkin_providers.dart';
-import 'checkin_qr_scanner_page.dart';
 
 /// Écran d'accueil (agent) : saisit un QR/token, consulte l'état, enregistre
 /// l'entrée dans la limite du RSVP. Permission `CHECKIN_CREATE`.
@@ -32,9 +31,8 @@ class _CheckInScanPageState extends ConsumerState<CheckInScanPage> {
   }
 
   Future<void> _doScan() async {
-    final token = invitationTokenFromInput(_tokenController.text);
+    final token = _tokenController.text.trim();
     if (token.isEmpty) return;
-    _tokenController.text = token;
     setState(() {
       _scanning = true;
       _scanDone = false;
@@ -65,13 +63,13 @@ class _CheckInScanPageState extends ConsumerState<CheckInScanPage> {
     try {
       final api = ref.read(checkInApiProvider);
       final result = await api.checkIn(
-        qrToken: invitationTokenFromInput(_tokenController.text),
+        qrToken: _tokenController.text.trim(),
         numberOfAttendees: 1,
       );
       if (!mounted) return;
       setState(() {
         _recordResult =
-            'Entrée enregistrée — restants : ${result.remainingAttendees}';
+            'Entrée enregistrée — restants : ${result['remainingAttendees'] ?? '?'}';
         _recording = false;
       });
     } catch (_) {
@@ -81,15 +79,6 @@ class _CheckInScanPageState extends ConsumerState<CheckInScanPage> {
         _recording = false;
       });
     }
-  }
-
-  Future<void> _openCamera() async {
-    final token = await Navigator.of(context).push<String>(
-      MaterialPageRoute(builder: (_) => const CheckInQrScannerPage()),
-    );
-    if (!mounted || token == null || token.isEmpty) return;
-    _tokenController.text = token;
-    await _doScan();
   }
 
   @override
@@ -118,15 +107,9 @@ class _CheckInScanPageState extends ConsumerState<CheckInScanPage> {
               ),
             ),
             const SizedBox(height: 12),
-            FilledButton.icon(
-              onPressed: _scanning ? null : _openCamera,
-              icon: const Icon(Icons.qr_code_scanner),
-              label: const Text('Scanner avec la caméra'),
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton(
+            FilledButton(
               onPressed: _scanning ? null : _doScan,
-              child: const Text('Vérifier le code collé'),
+              child: const Text('Scanner / Vérifier'),
             ),
             const SizedBox(height: 20),
             _buildScanResult(),

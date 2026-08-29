@@ -6,8 +6,7 @@ plugins {
 
 android {
     namespace = "com.mariageplus.mariageplus_app"
-    // flutter_secure_storage / plugins récents exigent SDK 37+.
-    compileSdk = 37
+    compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

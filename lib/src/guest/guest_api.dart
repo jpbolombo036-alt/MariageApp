@@ -1,5 +1,3 @@
-import 'package:dio/dio.dart';
-
 import '../api/api_client.dart';
 import '../api/api_config.dart';
 
@@ -126,74 +124,15 @@ class CreateGuestCategoryRequest {
       };
 }
 
-/// Requête de mise à jour d'un invité (`UpdateGuestRequest`) — champs optionnels.
-class UpdateGuestRequest {
-  UpdateGuestRequest({
-    this.firstName,
-    this.lastName,
-    this.phone,
-    this.email,
-    this.address,
-    this.categoryId,
-    this.allowedCompanions,
-    this.notes,
-    this.active,
-  });
-
-  final String? firstName;
-  final String? lastName;
-  final String? phone;
-  final String? email;
-  final String? address;
-  final int? categoryId;
-  final int? allowedCompanions;
-  final String? notes;
-  final bool? active;
-
-  Map<String, dynamic> toJson() => {
-        if (firstName != null) 'firstName': firstName,
-        if (lastName != null) 'lastName': lastName,
-        if (phone != null) 'phone': phone,
-        if (email != null) 'email': email,
-        if (address != null) 'address': address,
-        if (categoryId != null) 'categoryId': categoryId,
-        if (allowedCompanions != null) 'allowedCompanions': allowedCompanions,
-        if (notes != null) 'notes': notes,
-        if (active != null) 'active': active,
-      };
-}
-
-/// Requête de mise à jour d'une catégorie (`UpdateGuestCategoryRequest`).
-class UpdateGuestCategoryRequest {
-  UpdateGuestCategoryRequest({
-    this.name,
-    this.description,
-    this.displayOrder,
-    this.active,
-  });
-
-  final String? name;
-  final String? description;
-  final int? displayOrder;
-  final bool? active;
-
-  Map<String, dynamic> toJson() => {
-        if (name != null) 'name': name,
-        if (description != null) 'description': description,
-        if (displayOrder != null) 'displayOrder': displayOrder,
-        if (active != null) 'active': active,
-      };
-}
-
 /// Client API du module invités + catégories.
 class GuestApi {
   GuestApi({required this.api});
 
   final ApiClient api;
 
-  String _guestsPath(int weddingId) => '${ApiConfig.weddingsPath}/$weddingId/guests';
+  String _guestsPath(int weddingId) => '${ApiConfig.eventsPath}/$weddingId/guests';
   String _categoriesPath(int weddingId) =>
-      '${ApiConfig.weddingsPath}/$weddingId/guest-categories';
+      '${ApiConfig.eventsPath}/$weddingId/guest-categories';
 
   /// Liste paginée des invités (`GET .../guests`).
   Future<List<Guest>> listGuests(int weddingId, {int page = 0, int size = 25}) async {
@@ -223,62 +162,5 @@ class GuestApi {
   Future<GuestCategory> createCategory(int weddingId, CreateGuestCategoryRequest request) async {
     final json = await api.postJson(_categoriesPath(weddingId), request.toJson());
     return GuestCategory.fromJson(json);
-  }
-
-  /// Mise à jour d'un invité (`PUT .../guests/{guestId}`).
-  Future<Guest> updateGuest(int weddingId, int guestId, UpdateGuestRequest request) async {
-    final json = await api.putJson(
-      '${_guestsPath(weddingId)}/$guestId',
-      request.toJson(),
-    );
-    return Guest.fromJson(json);
-  }
-
-  /// Suppression logique d'un invité (`DELETE .../guests/{guestId}`).
-  Future<void> deleteGuest(int weddingId, int guestId) async {
-    await api.deleteRequest('${_guestsPath(weddingId)}/$guestId');
-  }
-
-  /// Mise à jour d'une catégorie (`PUT .../guest-categories/{categoryId}`).
-  Future<GuestCategory> updateCategory(
-    int weddingId,
-    int categoryId,
-    UpdateGuestCategoryRequest request,
-  ) async {
-    final json = await api.putJson(
-      '${_categoriesPath(weddingId)}/$categoryId',
-      request.toJson(),
-    );
-    return GuestCategory.fromJson(json);
-  }
-
-  /// Suppression logique d'une catégorie (`DELETE .../guest-categories/{categoryId}`).
-  Future<void> deleteCategory(int weddingId, int categoryId) async {
-    await api.deleteRequest('${_categoriesPath(weddingId)}/$categoryId');
-  }
-
-  /// Import CSV d'invités (`POST .../guests/import`, multipart `file`).
-  ///
-  /// [filePath] chemin local du fichier ; optionnellement [filename] (sinon
-  /// dérivé du chemin) et [contentType] (défaut inféré, ex. text/csv).
-  Future<Map<String, dynamic>> importCsv(
-    int weddingId,
-    String filePath, {
-    String? filename,
-    String? contentType,
-  }) async {
-    final file = await MultipartFile.fromFile(
-      filePath,
-      filename: filename,
-      contentType: (contentType != null && contentType.isNotEmpty)
-          ? DioMediaType.parse(contentType)
-          : null,
-    );
-    final form = FormData.fromMap(<String, dynamic>{'file': file});
-    final response = await api.dio.post<dynamic>(
-      '${_guestsPath(weddingId)}/import',
-      data: form,
-    );
-    return response.data as Map<String, dynamic>? ?? <String, dynamic>{};
   }
 }

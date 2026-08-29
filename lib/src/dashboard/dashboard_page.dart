@@ -5,7 +5,7 @@ import 'dashboard_api.dart';
 import 'dashboard_providers.dart';
 
 /// Écran dashboard d'un événement (Wedding) : agrégats backend.
-/// Charge `GET /api/weddings/{id}/dashboard` au montage + RefreshIndicator.
+/// Charge `GET /api/events/{id}/dashboard` au montage + RefreshIndicator.
 class DashboardPage extends ConsumerStatefulWidget {
   const DashboardPage({super.key, required this.weddingId, required this.weddingName});
 
@@ -113,16 +113,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                   '${d.tables.assignedGuests} affectés · capacité ${d.tables.capacity}'
                   ' · restants ${d.tables.remainingCapacity}',
             ),
-            if (d.categories.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Text(
-                'Par catégorie',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 4),
-              for (final c in d.categories)
-                _categoryRow(c),
-            ],
             const SizedBox(height: 16),
             Text(
               'Taux de réponse : ${_formatRate(d.invitations.responseRate)} %',
@@ -163,21 +153,5 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   String _formatRate(double value) {
     final formatted = value.toStringAsFixed(2);
     return formatted.replaceAll('.', ',');
-  }
-
-  Widget _categoryRow(CategoryStats c) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(c.name, style: Theme.of(context).textTheme.titleSmall),
-          Text(
-            '${c.totalGuests} invités · ${c.accepted} acceptés · ${c.declined} '
-            'refusés · ${c.pending} en attente · ${c.expectedAttendees} attendus',
-          ),
-        ],
-      ),
-    );
   }
 }

@@ -85,7 +85,7 @@ class AuthController extends Notifier<AuthState> {
         ApiConfig.authLogin,
         {'email': email, 'password': password},
       );
-      return await _applyLogin(json);
+      return _applyLogin(json);
     } catch (_) {
       return AuthResult.failure('Erreur réseau : connexion impossible');
     }
@@ -99,7 +99,7 @@ class AuthController extends Notifier<AuthState> {
         ApiConfig.authLogin,
         {'email': request.email, 'password': request.password},
       );
-      return await _applyLogin(json);
+      return _applyLogin(json);
     } catch (_) {
       return AuthResult.failure('Erreur lors de l’inscription');
     }
@@ -112,28 +112,17 @@ class AuthController extends Notifier<AuthState> {
     } catch (_) {
       // On déconnecte localement même si le serveur est injoignable.
     }
-    await _clearLocalSession();
-  }
-
-  /// Refresh 401 en échec : jetons déjà effacés par [ApiClient], on ramène l’UI au login.
-  void expireSession() {
-    _api.clearAccessToken();
-    state = const AuthState(restored: true);
-  }
-
-  Future<void> _clearLocalSession() async {
     await _store.clear();
-    _api.clearAccessToken();
-    state = const AuthState(restored: true);
+    state = AuthState.empty;
   }
 
-  Future<AuthResult> _applyLogin(Map<String, dynamic> json) async {
+  AuthResult _applyLogin(Map<String, dynamic> json) {
     if (json.containsKey('error')) {
       return AuthResult.failure('Identifiants invalides');
     }
     final login = LoginResponse.fromJson(json);
     _api.setAccessToken(login.accessToken);
-    await _store.save(
+    _store.save(
       accessToken: login.accessToken,
       refreshToken: login.refreshToken,
       expiresIn: login.expiresIn,

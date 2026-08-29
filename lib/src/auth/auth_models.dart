@@ -154,11 +154,4 @@ class PermissionCodes {
   static const String invitationCreate = 'INVITATION_CREATE';
   static const String checkinCreate = 'CHECKIN_CREATE';
   static const String tableCreate = 'TABLE_CREATE';
-  static const String eventView = 'EVENT_VIEW';
-  static const String eventCreate = 'EVENT_CREATE';
-  static const String eventUpdate = 'EVENT_UPDATE';
-  static const String categoryDelete = 'CATEGORY_DELETE';
-  static const String invitationSent = 'INVITATION_SEND';
-  static const String invitationCancel = 'INVITATION_CANCEL';
-  static const String organizationManageMembers = 'ORGANIZATION_MANAGE_MEMBERS';
 }

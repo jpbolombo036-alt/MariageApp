@@ -11,12 +11,7 @@ final secureTokenStoreProvider = Provider<SecureTokenStore>(
 
 /// Client HTTP central (Bearer + refresh-401).
 final apiClientProvider = Provider<ApiClient>((ref) {
-  return ApiClient(
-    tokenStore: ref.watch(secureTokenStoreProvider),
-    onSessionExpired: () async {
-      ref.read(authControllerProvider.notifier).expireSession();
-    },
-  );
+  return ApiClient(tokenStore: ref.watch(secureTokenStoreProvider));
 });
 
 /// Contrôle d'authentification (session, user, permissions).

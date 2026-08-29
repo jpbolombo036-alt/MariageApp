@@ -5,6 +5,9 @@ import 'wedding_api.dart';
 import 'wedding_providers.dart';
 
 /// Formulaire de création d'un événement (Wedding).
+/// Le champ «Type d'événement» propose WEDDING, BIRTHDAY, GRADUATION, PARTY,
+/// CONFERENCE, OTHER (le backend crée toujours une entité Wedding, mais son
+/// `eventType` précise la nature).
 class WeddingCreatePage extends ConsumerStatefulWidget {
   const WeddingCreatePage({super.key});
 
@@ -21,6 +24,7 @@ class _WeddingCreatePageState extends ConsumerState<WeddingCreatePage> {
   final _brideLastController = TextEditingController();
   final _descriptionController = TextEditingController();
 
+  EventType _eventType = EventType.wedding;
   bool _submitting = false;
 
   @override
@@ -38,6 +42,8 @@ class _WeddingCreatePageState extends ConsumerState<WeddingCreatePage> {
     setState(() => _submitting = true);
 
     final request = CreateWeddingRequest(
+      name: '${_groomFirstController.text.trim()} '
+          '& ${_brideFirstController.text.trim()}',
       groomFirstName: _groomFirstController.text.trim(),
       groomLastName: _groomLastController.text.trim(),
       brideFirstName: _brideFirstController.text.trim(),
@@ -45,6 +51,7 @@ class _WeddingCreatePageState extends ConsumerState<WeddingCreatePage> {
       description: _descriptionController.text.trim().isEmpty
           ? null
           : _descriptionController.text.trim(),
+      eventType: _eventType,
     );
 
     try {
@@ -54,6 +61,15 @@ class _WeddingCreatePageState extends ConsumerState<WeddingCreatePage> {
     } catch (_) {
       if (mounted) setState(() => _submitting = false);
     }
+  }
+
+  ListTile _typeTile(EventType type, String label) {
+    return ListTile(
+      leading: Icon(_eventType == type ? Icons.check_circle : Icons.circle),
+      title: Text(label),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => setState(() => _eventType = type),
+    );
   }
 
   @override
@@ -94,6 +110,17 @@ class _WeddingCreatePageState extends ConsumerState<WeddingCreatePage> {
                 decoration: const InputDecoration(labelText: 'Description'),
               ),
               const SizedBox(height: 16),
+              Text(
+                'Type d’événement',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              _typeTile(EventType.wedding, 'Mariage'),
+              _typeTile(EventType.collation, 'Collation'),
+              _typeTile(EventType.anniversary, 'Anniversaire'),
+              _typeTile(EventType.baptism, 'Baptême'),
+              _typeTile(EventType.graduation, 'Graduation'),
+              _typeTile(EventType.other, 'Autre'),
+              const SizedBox(height: 20),
               FilledButton(
                 onPressed: _submitting ? null : _submit,
                 child: Text('Créer l’événement'),

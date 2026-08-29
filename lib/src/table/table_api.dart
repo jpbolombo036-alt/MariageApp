@@ -76,30 +76,15 @@ class TableAssignment {
       );
 }
 
-/// Requête de mise à jour d'une table (`UpdateWeddingTableRequest`).
-class UpdateWeddingTableRequest {
-  UpdateWeddingTableRequest({this.name, this.capacity, this.description});
-
-  final String? name;
-  final int? capacity;
-  final String? description;
-
-  Map<String, dynamic> toJson() => {
-        if (name != null) 'name': name,
-        if (capacity != null) 'capacity': capacity,
-        if (description != null) 'description': description,
-      };
-}
-
 /// Client API du module tables + affectations.
 class TableApi {
   TableApi({required this.api});
 
   final ApiClient api;
 
-  String _tablesPath(int weddingId) => '${ApiConfig.weddingsPath}/$weddingId/tables';
+  String _tablesPath(int weddingId) => '${ApiConfig.eventsPath}/$weddingId/tables';
   String _assignmentsPath(int weddingId) =>
-      '${ApiConfig.weddingsPath}/$weddingId/assignments';
+      '${ApiConfig.eventsPath}/$weddingId/assignments';
 
   /// Liste des tables d'un événement (`GET .../tables`).
   Future<List<WeddingTable>> list(int weddingId) async {
@@ -111,26 +96,6 @@ class TableApi {
   Future<WeddingTable> create(int weddingId, CreateWeddingTableRequest request) async {
     final json = await api.postJson(_tablesPath(weddingId), request.toJson());
     return WeddingTable.fromJson(json);
-  }
-
-  /// Détail (`GET .../tables/{tableId}`).
-  Future<WeddingTable> getById(int weddingId, int tableId) async {
-    final json = await api.getJson('${_tablesPath(weddingId)}/$tableId');
-    return WeddingTable.fromJson(json);
-  }
-
-  /// Mise à jour d'une table (`PUT .../tables/{tableId}`).
-  Future<WeddingTable> update(int weddingId, int tableId, UpdateWeddingTableRequest request) async {
-    final json = await api.putJson(
-      '${_tablesPath(weddingId)}/$tableId',
-      request.toJson(),
-    );
-    return WeddingTable.fromJson(json);
-  }
-
-  /// Suppression d'une table (`DELETE .../tables/{tableId}`, refusé si invités affectés).
-  Future<void> delete(int weddingId, int tableId) async {
-    await api.deleteRequest('${_tablesPath(weddingId)}/$tableId');
   }
 
   /// Affecter un invité à une table (`POST .../tables/{id}/assignments`).

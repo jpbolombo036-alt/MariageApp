@@ -29,7 +29,7 @@ class _PublicRsvpPageState extends ConsumerState<PublicRsvpPage> {
   }
 
   Future<void> _lookup() async {
-    final token = invitationTokenFromInput(_tokenController.text);
+    final token = _tokenController.text.trim();
     if (token.isEmpty) return;
     setState(() {
       _loading = true;
@@ -42,7 +42,6 @@ class _PublicRsvpPageState extends ConsumerState<PublicRsvpPage> {
       // Consomme aussi le RSVP courant depuis la réponse publique.
       if (!mounted) return;
       setState(() {
-        _tokenController.text = token;
         _invitation = inv;
         _attendees = (inv.rsvpNumberOfAttendees ?? 1).clamp(1, 20);
         _loading = false;
@@ -63,7 +62,7 @@ class _PublicRsvpPageState extends ConsumerState<PublicRsvpPage> {
     try {
       final api = ref.read(checkInApiProvider);
       final result = await api.submitRsvp(
-        publicToken: invitationTokenFromInput(_tokenController.text),
+        publicToken: _tokenController.text.trim(),
         status: status,
         numberOfAttendees: status == 'ACCEPTED' ? _attendees : 0,
       );

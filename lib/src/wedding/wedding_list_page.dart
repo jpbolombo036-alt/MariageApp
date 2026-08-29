@@ -8,6 +8,9 @@ import 'wedding_create_page.dart';
 import 'wedding_detail_page.dart';
 import 'wedding_providers.dart';
 
+/// L'écran « module mariages/événements » : liste les weddings de l'utilisateur
+/// et permet d'en créer (avec choix du type). Les actions sont conditionnées
+/// par les permissions (le backend reste l'autorité).
 class WeddingListPage extends ConsumerStatefulWidget {
   const WeddingListPage({super.key});
 
@@ -123,6 +126,7 @@ class _WeddingListPageState extends ConsumerState<WeddingListPage> {
   }
 }
 
+/// Carte d'affichage d'un événement (nom + type + statut).
 class _WeddingCard extends StatelessWidget {
   const _WeddingCard({required this.wedding});
 
@@ -130,13 +134,14 @@ class _WeddingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final typeLabel = _typeLabel(wedding.eventTypeEnum);
     return Card(
       child: ListTile(
-        leading: const CircleAvatar(
-          child: Icon(Icons.event),
+        leading: CircleAvatar(
+          child: Icon(typeLabel.icon),
         ),
         title: Text(wedding.displayName),
-        subtitle: Text(_statusLabel(wedding.status)),
+        subtitle: Text('${typeLabel.label} · ${_statusLabel(wedding.status)}'),
         trailing: const Icon(Icons.chevron_right),
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute(
@@ -146,13 +151,24 @@ class _WeddingCard extends StatelessWidget {
       ),
     );
   }
-}
 
-String _statusLabel(String status) => switch (status) {
-      'PUBLISHED' => 'Publié',
-      'ACTIVE' => 'Actif',
-      'COMPLETED' => 'Terminé',
-      'ARCHIVED' => 'Archivé',
-      'CANCELLED' => 'Annulé',
-      _ => 'Brouillon',
+  ({IconData icon, String label}) _typeLabel(EventType? type) {
+    return switch (type) {
+      EventType.collation => (icon: Icons.celebration, label: 'Collation'),
+      EventType.anniversary => (icon: Icons.cake, label: 'Anniversaire'),
+      EventType.baptism => (icon: Icons.church, label: 'Baptême'),
+      EventType.graduation => (icon: Icons.school, label: 'Graduation'),
+      EventType.other => (icon: Icons.event, label: 'Autre'),
+      _ => (icon: Icons.favorite, label: 'Mariage'),
     };
+  }
+
+  String _statusLabel(String status) => switch (status) {
+        'PUBLISHED' => 'Publié',
+        'ACTIVE' => 'Actif',
+        'COMPLETED' => 'Terminé',
+        'ARCHIVED' => 'Archivé',
+        'CANCELLED' => 'Annulé',
+        _ => 'Brouillon',
+      };
+}
