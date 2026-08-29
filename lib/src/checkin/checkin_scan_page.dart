@@ -69,7 +69,7 @@ class _CheckInScanPageState extends ConsumerState<CheckInScanPage> {
       if (!mounted) return;
       setState(() {
         _recordResult =
-            'Entrée enregistrée — restants : ${result['remainingAttendees'] ?? '?'}';
+            'Entrée enregistrée — restants : ${result.remainingAttendees ?? '?'}';
         _recording = false;
       });
     } catch (_) {

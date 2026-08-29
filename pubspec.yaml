@@ -48,6 +48,8 @@ dependencies:
   # --- Métadonnées / annotations communes ---
   meta: ^1.16.0
   collection: ^1.16.0
+  google_fonts: ^8.2.1
+  mobile_scanner: ^7.4.0
 
 dev_dependencies:
   flutter_test:

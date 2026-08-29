@@ -51,6 +51,11 @@ class _EvenementCreateStepperScreenState extends ConsumerState<EvenementCreateSt
     });
     try {
       await ref.read(weddingApiProvider).create(CreateWeddingRequest(
+            // `name` et `eventType` sont requis par l'API /api/events.
+            name: _nameController.text.trim().isEmpty
+                ? 'Événement'
+                : _nameController.text.trim(),
+            eventType: EventType.wedding,
             // Les 4 champs sont @NotBlank côté backend : on remplit avec les
             // prénoms/noms saisis, sinon valeur neutre non vide par sécurité.
             groomFirstName: _groomFirstNameController.text.trim().isEmpty
@@ -66,7 +71,6 @@ class _EvenementCreateStepperScreenState extends ConsumerState<EvenementCreateSt
                 ? 'MariagePlus'
                 : _brideLastNameController.text.trim(),
             description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
-            welcomeMessage: _welcomeController.text.trim().isEmpty ? null : _welcomeController.text.trim(),
           ));
       if (!mounted) return;
       Navigator.of(context).pop(true);

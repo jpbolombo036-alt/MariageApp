@@ -172,7 +172,7 @@ Widget _buildSuccess() {
               ),
               const SizedBox(height: 8),
               Text(
-                r.guestName,
+                r.guestName ?? '',
                 style: const TextStyle(color: AppColors.agentNavy, fontSize: 22, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 16),

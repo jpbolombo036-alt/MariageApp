@@ -69,6 +69,23 @@ class InvitationApi {
     return raw.whereType<Map<String, dynamic>>().map((e) => Invitation.fromJson(e)).toList();
   }
 
+  /// Envoi d'une invitation (`POST .../invitations/{id}/send`).
+  Future<SendInvitationResponse> send(int weddingId, int invitationId) async {
+    final json = await api.postJson('${_path(weddingId)}/$invitationId/send', {});
+    return SendInvitationResponse.fromJson(json);
+  }
+
+  /// Renvoi d'une invitation (`POST .../invitations/{id}/resend`).
+  Future<SendInvitationResponse> resend(int weddingId, int invitationId) async {
+    final json = await api.postJson('${_path(weddingId)}/$invitationId/resend', {});
+    return SendInvitationResponse.fromJson(json);
+  }
+
+  /// Annulation d'une invitation (`POST .../invitations/{id}/cancel`).
+  Future<void> cancel(int weddingId, int invitationId) async {
+    await api.postNoContent('${_path(weddingId)}/$invitationId/cancel');
+  }
+
   /// Création d'une invitation (`POST .../invitations`).
   Future<Invitation> create(int weddingId, CreateInvitationRequest request) async {
     final json = await api.postJson(_path(weddingId), request.toJson());
@@ -82,4 +99,18 @@ class InvitationApi {
     );
     return QrCode(dataUri: json['qrDataUri'] as String? ?? '');
   }
+}
+
+/// Réponse des endpoints send/resend (`SendInvitationResponse` backend).
+class SendInvitationResponse {
+  SendInvitationResponse({this.emailSent, this.publicInviteUrl});
+
+  final bool? emailSent;
+  final String? publicInviteUrl;
+
+  factory SendInvitationResponse.fromJson(Map<String, dynamic> json) =>
+      SendInvitationResponse(
+        emailSent: json['emailSent'] as bool?,
+        publicInviteUrl: json['publicInviteUrl'] as String?,
+      );
 }

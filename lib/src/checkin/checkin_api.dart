@@ -125,13 +125,68 @@ class CheckInApi {
   }
 
   /// Enregistrement d'un check-in (`POST /api/checkins`).
-  Future<Map<String, dynamic>> checkIn({
+  Future<CheckInResult> checkIn({
     required String qrToken,
     required int numberOfAttendees,
   }) async {
-    return await api.postJson(
+    final json = await api.postJson(
       ApiConfig.checkinsPath,
       {'qrToken': qrToken, 'numberOfAttendees': numberOfAttendees},
     );
+    return CheckInResult.fromJson(json);
   }
+}
+
+/// Résultat d'un enregistrement d'entrée (`CheckInResponse` backend).
+class CheckInResult {
+  CheckInResult({
+    required this.success,
+    this.message,
+    this.guestName,
+    this.weddingDisplayName,
+    this.invitationStatus,
+    this.rsvpStatus,
+    this.numberOfAttendees,
+    this.expectedAttendees,
+    this.checkedInAttendees,
+    this.remainingAttendees,
+    this.tableName,
+  });
+
+  final bool success;
+  final String? message;
+  final String? guestName;
+  final String? weddingDisplayName;
+  final String? invitationStatus;
+  final String? rsvpStatus;
+  final int? numberOfAttendees;
+  final int? expectedAttendees;
+  final int? checkedInAttendees;
+  final int? remainingAttendees;
+  final String? tableName;
+
+  factory CheckInResult.fromJson(Map<String, dynamic> json) => CheckInResult(
+        success: json['success'] as bool? ?? true,
+        message: json['message'] as String?,
+        guestName: json['guestName'] as String?,
+        weddingDisplayName: json['weddingDisplayName'] as String?,
+        invitationStatus: json['invitationStatus'] as String?,
+        rsvpStatus: json['rsvpStatus'] as String?,
+        numberOfAttendees: (json['numberOfAttendees'] as num?)?.toInt(),
+        expectedAttendees: (json['expectedAttendees'] as num?)?.toInt(),
+        checkedInAttendees: (json['checkedInAttendees'] as num?)?.toInt(),
+        remainingAttendees: (json['remainingAttendees'] as num?)?.toInt(),
+        tableName: json['tableName'] as String?,
+      );
+}
+
+
+/// Extrait le jeton public d'invitation d'une entrée de scan QR brute
+/// (URL publique complète ou jeton nu).
+String invitationTokenFromInput(String raw) {
+  final input = raw.trim();
+  final match = RegExp(r'/invitations/([A-Za-z0-9_-]+)').firstMatch(input);
+  if (match != null) return match.group(1)!;
+  // Sinon on considère que l'entrée est déjà le jeton.
+  return input;
 }

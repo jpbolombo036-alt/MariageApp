@@ -154,4 +154,11 @@ class PermissionCodes {
   static const String invitationCreate = 'INVITATION_CREATE';
   static const String checkinCreate = 'CHECKIN_CREATE';
   static const String tableCreate = 'TABLE_CREATE';
+
+  // --- Codes du modèle unifié "Event" (mêmes rôles seedés backend) ---
+  static const String eventView = 'EVENT_VIEW';
+  static const String eventCreate = 'EVENT_CREATE';
+  static const String eventUpdate = 'EVENT_UPDATE';
+  static const String eventDelete = 'EVENT_DELETE';
+  static const String organizationManageMembers = 'ORGANIZATION_MANAGE_MEMBERS';
 }

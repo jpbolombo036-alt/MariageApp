@@ -139,4 +139,40 @@ class AdminApi {
     final raw = await api.getList(ApiConfig.organizationsPath);
     return raw.whereType<Map<String, dynamic>>().map((e) => AdminOrganization.fromJson(e)).toList();
   }
+
+  /// Ajout d'un membre à une organisation (rôle ORGANISATEUR).
+  Future<void> addOrganizationMember(int organizationId, AdminAddMemberRequest request) async {
+    await api.postJson(
+      '${ApiConfig.organizationsPath}/$organizationId/members',
+      request.toJson(),
+    );
+  }
+}
+
+/// Requête d'ajout d'un membre (`AddOrganizationMemberRequest` backend).
+class AdminAddMemberRequest {
+  AdminAddMemberRequest({
+    required this.firstName,
+    required this.lastName,
+    required this.email,
+    this.phone,
+    required this.password,
+    required this.roleCode,
+  });
+
+  final String firstName;
+  final String lastName;
+  final String email;
+  final String? phone;
+  final String password;
+  final String roleCode;
+
+  Map<String, dynamic> toJson() => {
+        'firstName': firstName,
+        'lastName': lastName,
+        'email': email,
+        if (phone != null) 'phone': phone,
+        'password': password,
+        'roleCode': roleCode,
+      };
 }

@@ -163,4 +163,38 @@ class GuestApi {
     final json = await api.postJson(_categoriesPath(weddingId), request.toJson());
     return GuestCategory.fromJson(json);
   }
+
+  /// Modification d'un invite (`PATCH .../guests/{guestId}`).
+  Future<Guest> updateGuest(int weddingId, int guestId, UpdateGuestRequest request) async {
+    final json = await api.patchJson('${_guestsPath(weddingId)}/$guestId', request.toJson());
+    return Guest.fromJson(json);
+  }
+}
+
+/// Requete de modification d'un invite (`UpdateGuestRequest`).
+class UpdateGuestRequest {
+  UpdateGuestRequest({
+    this.firstName,
+    this.lastName,
+    this.email,
+    this.phone,
+    this.allowedCompanions,
+    this.notes,
+  });
+
+  final String? firstName;
+  final String? lastName;
+  final String? email;
+  final String? phone;
+  final int? allowedCompanions;
+  final String? notes;
+
+  Map<String, dynamic> toJson() => {
+        if (firstName != null) 'firstName': firstName,
+        if (lastName != null) 'lastName': lastName,
+        if (email != null) 'email': email,
+        if (phone != null) 'phone': phone,
+        if (allowedCompanions != null) 'allowedCompanions': allowedCompanions,
+        if (notes != null) 'notes': notes,
+      };
 }

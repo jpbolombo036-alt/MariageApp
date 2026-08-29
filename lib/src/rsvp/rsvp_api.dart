@@ -35,9 +35,12 @@ class RsvpApi {
 
   final ApiClient api;
 
-  /// Liste des RSVP d'un mariage (`GET /api/weddings/{id}/rsvps`).
+  /// Liste des RSVP d'un événement (`GET /api/events/{id}/rsvps` — alias
+  /// de l'ancienne route `/api/weddings/{id}/rsvps`).
   Future<List<GuestRsvp>> listForWedding(int weddingId) async {
-    final raw = await api.getList(ApiConfig.weddingRsvpsPath(weddingId));
+    final raw = await api.getList(
+      '${ApiConfig.eventsPath}/$weddingId/rsvps',
+    );
     return raw
         .whereType<Map<String, dynamic>>()
         .map(GuestRsvp.fromJson)

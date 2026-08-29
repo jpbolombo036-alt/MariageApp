@@ -223,4 +223,18 @@ class WeddingApi {
     final json = await api.getJson('${ApiConfig.eventsPath}/$id');
     return Wedding.fromJson(json);
   }
+
+  /// Changement de statut (`PATCH /api/events/{id}/status`).
+  Future<Wedding> updateStatus(int id, String status) async {
+    final json = await api.patchJson(
+      '${ApiConfig.eventsPath}/$id/status',
+      {'status': status},
+    );
+    return Wedding.fromJson(json);
+  }
+
+  /// Suppression logique (`DELETE /api/events/{id}`).
+  Future<void> delete(int id) async {
+    await api.deleteRequest('${ApiConfig.eventsPath}/$id');
+  }
 }

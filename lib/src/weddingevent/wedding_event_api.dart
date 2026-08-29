@@ -128,34 +128,34 @@ class WeddingEventApi {
 
   final ApiClient api;
 
-  /// Liste paginée (`GET .../events`).
+  /// Liste paginée (`GET .../sessions` — alias des anciens wedding-events).
   Future<List<WeddingEvent>> list(int weddingId, {int page = 0, int size = 25}) async {
     final raw = await api.getList(
-      ApiConfig.weddingEventsPath(weddingId),
+      '${ApiConfig.eventsPath}/$weddingId/sessions',
       queryParameters: {'page': page, 'size': size},
     );
     return raw.whereType<Map<String, dynamic>>().map((e) => WeddingEvent.fromJson(e)).toList();
   }
 
-  /// Création (`POST .../events`).
+  /// Création (`POST .../sessions`).
   Future<WeddingEvent> create(int weddingId, CreateWeddingEventRequest request) async {
     final json = await api.postJson(
-      ApiConfig.weddingEventsPath(weddingId),
+      '${ApiConfig.eventsPath}/$weddingId/sessions',
       request.toJson(),
     );
     return WeddingEvent.fromJson(json);
   }
 
-  /// Détail (`GET .../events/{eventId}`).
+  /// Détail (`GET .../sessions/{sessionId}`).
   Future<WeddingEvent> getById(int weddingId, int eventId) async {
     final json = await api.getJson(
-      '${ApiConfig.weddingEventsPath(weddingId)}/$eventId',
+      '${ApiConfig.eventsPath}/$weddingId/sessions/$eventId',
     );
     return WeddingEvent.fromJson(json);
   }
 
-  /// Suppression logique (`DELETE .../events/{eventId}`).
+  /// Suppression logique (`DELETE .../sessions/{sessionId}`).
   Future<void> delete(int weddingId, int eventId) async {
-    await api.deleteRequest('${ApiConfig.weddingEventsPath(weddingId)}/$eventId');
+    await api.deleteRequest('${ApiConfig.eventsPath}/$weddingId/sessions/$eventId');
   }
 }

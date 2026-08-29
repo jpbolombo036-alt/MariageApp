@@ -48,6 +48,18 @@ class ApiClient {
     _dio.options.headers['Authorization'] = 'Bearer $token';
   }
 
+  /// Changement du mot de passe de l'utilisateur connecté
+  /// (`PUT /api/users/me/password`).
+  Future<void> changePassword({
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    await putJson(
+      '${ApiConfig.usersPath}/me/password',
+      {'oldPassword': oldPassword, 'newPassword': newPassword},
+    );
+  }
+
   Future<void> _restoreBearerFromStore() async {
     final token = await tokenStore.readAccessToken();
     if (token != null && token.isNotEmpty) setAccessToken(token);
