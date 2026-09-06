@@ -46,4 +46,8 @@ class ApiConfig {
   static const String rolesPath = '/api/roles';
   static const String permissionsPath = '/api/permissions';
   static const String organizationsPath = '/api/organizations';
+
+  /// Réglages plateforme (lecture : tout utilisateur authentifié ;
+  /// écriture : SUPER_ADMIN uniquement).
+  static const String adminWhatsappSettingsPath = '/api/admin/settings/whatsapp';
 }

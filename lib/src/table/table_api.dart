@@ -98,6 +98,14 @@ class TableApi {
     return WeddingTable.fromJson(json);
   }
 
+  /// Modification d'une table (`PUT .../tables/{tableId}`).
+  Future<WeddingTable> update(
+      int weddingId, int tableId, CreateWeddingTableRequest request) async {
+    final json =
+        await api.putJson('${_tablesPath(weddingId)}/$tableId', request.toJson());
+    return WeddingTable.fromJson(json);
+  }
+
   /// Affecter un invité à une table (`POST .../tables/{id}/assignments`).
   Future<TableAssignment> assign({
     required int weddingId,

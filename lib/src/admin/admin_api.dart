@@ -140,6 +140,20 @@ class AdminApi {
     return raw.whereType<Map<String, dynamic>>().map((e) => AdminOrganization.fromJson(e)).toList();
   }
 
+  /// État de l'envoi WhatsApp (`GET /api/admin/settings/whatsapp`).
+  /// Interrupteur global : false = les points d'entrée WhatsApp sont masqués.
+  Future<bool> isWhatsappSendingEnabled() async {
+    final json = await api.getJson(ApiConfig.adminWhatsappSettingsPath);
+    return json['whatsappSendingEnabled'] as bool? ?? true;
+  }
+
+  /// Activer / désactiver l'envoi WhatsApp (SUPER_ADMIN — 403 sinon).
+  Future<bool> updateWhatsappSendingEnabled(bool enabled) async {
+    final json = await api.putJson(
+        ApiConfig.adminWhatsappSettingsPath, {'enabled': enabled});
+    return json['whatsappSendingEnabled'] as bool? ?? enabled;
+  }
+
   /// Ajout d'un membre à une organisation (rôle ORGANISATEUR).
   Future<void> addOrganizationMember(int organizationId, AdminAddMemberRequest request) async {
     await api.postJson(

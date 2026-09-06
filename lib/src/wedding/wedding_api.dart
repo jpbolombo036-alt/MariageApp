@@ -96,8 +96,11 @@ class Wedding {
     this.startTime,
     this.endTime,
     this.venueName,
+    this.venueAddress,
     this.city,
+    this.commune,
     this.country,
+    this.message,
     required this.status,
     required this.organizationId,
     this.weddingDetails,
@@ -111,8 +114,11 @@ class Wedding {
   final String? startTime;
   final String? endTime;
   final String? venueName;
+  final String? venueAddress;
   final String? city;
+  final String? commune;
   final String? country;
+  final String? message;
   final String status;
   final int organizationId;
   final WeddingDetails? weddingDetails;
@@ -148,8 +154,11 @@ class Wedding {
       startTime: json['startTime'] as String?,
       endTime: json['endTime'] as String?,
       venueName: json['venueName'] as String?,
+      venueAddress: json['venueAddress'] as String?,
       city: json['city'] as String?,
+      commune: json['commune'] as String?,
       country: json['country'] as String?,
+      message: json['message'] as String?,
       status: json['status'] as String? ?? 'DRAFT',
       organizationId: ((json['organizationId'] as num?) ?? 0).toInt(),
       weddingDetails:
@@ -237,4 +246,54 @@ class WeddingApi {
   Future<void> delete(int id) async {
     await api.deleteRequest('${ApiConfig.eventsPath}/$id');
   }
+  /// Modification d'un événement (`PUT /api/events/{id}`) — mise à jour
+  /// partielle : seuls les champs renseignés sont appliqués côté backend.
+  Future<Wedding> update(int id, UpdateEventRequest request) async {
+    final json =
+        await api.putJson('${ApiConfig.eventsPath}/$id', request.toJson());
+    return Wedding.fromJson(json);
+  }
+}
+/// Requête de modification d'un événement (`UpdateEventRequest`).
+/// Tous les champs sont optionnels : le backend n'applique que les non-null.
+class UpdateEventRequest {
+  UpdateEventRequest({
+    this.name,
+    this.description,
+    this.eventDate,
+    this.startTime,
+    this.endTime,
+    this.venueName,
+    this.venueAddress,
+    this.city,
+    this.commune,
+    this.country,
+    this.message,
+  });
+
+  final String? name;
+  final String? description;
+  final String? eventDate;
+  final String? startTime;
+  final String? endTime;
+  final String? venueName;
+  final String? venueAddress;
+  final String? city;
+  final String? commune;
+  final String? country;
+  final String? message;
+
+  Map<String, dynamic> toJson() => {
+        if (name != null) 'name': name,
+        if (description != null) 'description': description,
+        if (eventDate != null) 'eventDate': eventDate,
+        if (startTime != null) 'startTime': startTime,
+        if (endTime != null) 'endTime': endTime,
+        if (venueName != null) 'venueName': venueName,
+        if (venueAddress != null) 'venueAddress': venueAddress,
+        if (city != null) 'city': city,
+        if (commune != null) 'commune': commune,
+        if (country != null) 'country': country,
+        if (message != null) 'message': message,
+      };
 }
