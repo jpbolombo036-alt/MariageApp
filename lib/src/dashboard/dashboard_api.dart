@@ -177,4 +177,66 @@ class DashboardApi {
     );
     return Dashboard.fromJson(json);
   }
+
+  /// Prochaine séance (`GET .../dashboard/upcoming-session`), null si aucune.
+  Future<UpcomingSession?> upcomingSession(int weddingId) async {
+    final json = await api.getJsonOrNull(
+      '${ApiConfig.eventsPath}/$weddingId/dashboard/upcoming-session',
+    );
+    if (json == null || json['id'] == null) return null;
+    return UpcomingSession.fromJson(json);
+  }
+
+  /// Activité récente (`GET .../dashboard/recent-activity`).
+  Future<List<ActivityItem>> recentActivity(int weddingId, {int limit = 8}) async {
+    final raw = await api.getList(
+      '${ApiConfig.eventsPath}/$weddingId/dashboard/recent-activity',
+      queryParameters: {'limit': limit},
+    );
+    return raw.whereType<Map<String, dynamic>>().map(ActivityItem.fromJson).toList();
+  }
+}
+
+/// Prochaine séance affichée sur le tableau de bord.
+class UpcomingSession {
+  const UpcomingSession({
+    required this.id,
+    required this.name,
+    this.sessionDate,
+    this.startTime,
+    this.venueName,
+  });
+
+  final int id;
+  final String name;
+  final String? sessionDate;
+  final String? startTime;
+  final String? venueName;
+
+  factory UpcomingSession.fromJson(Map<String, dynamic> json) => UpcomingSession(
+        id: (json['id'] as num).toInt(),
+        name: json['name'] as String? ?? '',
+        sessionDate: json['sessionDate'] as String?,
+        startTime: json['startTime'] as String?,
+        venueName: json['venueName'] as String?,
+      );
+}
+
+/// Ligne d'activité récente.
+class ActivityItem {
+  const ActivityItem({
+    required this.action,
+    this.details,
+    this.performedAt,
+  });
+
+  final String action;
+  final String? details;
+  final String? performedAt;
+
+  factory ActivityItem.fromJson(Map<String, dynamic> json) => ActivityItem(
+        action: json['action'] as String? ?? '',
+        details: json['details'] as String?,
+        performedAt: json['performedAt'] as String?,
+      );
 }

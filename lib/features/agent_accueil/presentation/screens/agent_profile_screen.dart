@@ -4,8 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../src/auth/auth_providers.dart';
 import '../../../../src/theme/app_colors.dart';
 import '../../../../src/theme/app_theme.dart';
+import '../../../../src/theme/theme_controller.dart';
+import '../../../../src/user/profile_edit_page.dart';
+import '../../../organisateur/presentation/screens/change_password_screen.dart';
 
-/// Écran « Mon profil » de l'espace AGENT_ACCUEIL (onglet Profil).
+/// Écran « Mon profil » de l'espace AGENT_ACCUEIL.
 class AgentProfileScreen extends ConsumerWidget {
   const AgentProfileScreen({super.key});
 
@@ -18,23 +21,21 @@ class AgentProfileScreen extends ConsumerWidget {
             const Text('Vous devrez vous reconnecter pour accéder à votre espace.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Retour'),
-          ),
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Retour')),
           TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Déconnexion'),
-          ),
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Déconnexion')),
         ],
       ),
     );
     if (ok != true || !context.mounted) return;
-    // Le routeur global réagit à l'état d'authentification (retour au login).
     await ref.read(authControllerProvider.notifier).logout();
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final p = AgentPalette.of(context);
     final auth = ref.watch(authControllerProvider);
     final user = auth.user;
     final fullName =
@@ -50,13 +51,14 @@ class AgentProfileScreen extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _HeaderCard(
+            palette: p,
             initials: initials,
             name: fullName,
             email: email,
             role: 'AGENT_ACCUEIL',
           ),
           const SizedBox(height: 24),
-          _SettingsSection(onLogout: () => _confirmLogout(context, ref)),
+          _SettingsSection(palette: p, onLogout: () => _confirmLogout(context, ref)),
         ],
       ),
     );
@@ -65,12 +67,14 @@ class AgentProfileScreen extends ConsumerWidget {
 /// Carte d'en-tête : avatar + nom + e-mail + badge de rôle.
 class _HeaderCard extends StatelessWidget {
   const _HeaderCard({
+    required this.palette,
     required this.initials,
     required this.name,
     required this.email,
     required this.role,
   });
 
+  final AgentPalette palette;
   final String initials;
   final String name;
   final String email;
@@ -82,8 +86,8 @@ class _HeaderCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.agentNavy, Color(0xFF2E3D5F)],
+        gradient: LinearGradient(
+          colors: [palette.primary, palette.primaryLight],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -141,7 +145,7 @@ class _HeaderCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppColors.agentGold.withValues(alpha: 0.9),
+                    color: palette.primary.withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -163,48 +167,63 @@ class _HeaderCard extends StatelessWidget {
   }
 }
 /// Groupe de réglages (informations, sécurité, préférences, déconnexion).
-class _SettingsSection extends StatelessWidget {
-  const _SettingsSection({required this.onLogout});
+class _SettingsSection extends ConsumerWidget {
+  const _SettingsSection({required this.palette, required this.onLogout});
 
+  final AgentPalette palette;
   final VoidCallback onLogout;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(themeModeProvider);
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: palette.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.lightBorder),
+        border: Border.all(color: palette.border),
       ),
       child: Column(
         children: [
           _SettingsTile(
+            palette: palette,
             icon: Icons.person_outline,
             label: 'Informations personnelles',
-            onTap: () {},
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const ProfileEditPage()),
+            ),
           ),
           _SettingsTile(
+            palette: palette,
             icon: Icons.lock_outline,
             label: 'Changer le mot de passe',
-            onTap: () {},
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const ChangePasswordScreen(),
+              ),
+            ),
           ),
           _SettingsTile(
-            icon: Icons.tune,
-            label: 'Préférences',
-            onTap: () {},
+            palette: palette,
+            icon: Icons.dark_mode_outlined,
+            label: 'Apparence',
+            value: themeModeLabel(mode),
+            onTap: () => showThemeModePicker(context, ref),
           ),
           _SettingsTile(
+            palette: palette,
             icon: Icons.notifications_none_outlined,
             label: 'Notifications',
             onTap: () {},
           ),
           _SettingsTile(
+            palette: palette,
             icon: Icons.language,
             label: 'Langue',
             value: 'Français',
             onTap: () {},
           ),
           _SettingsTile(
+            palette: palette,
             icon: Icons.logout,
             label: 'Se déconnecter',
             isDestructive: true,
@@ -218,6 +237,7 @@ class _SettingsSection extends StatelessWidget {
 /// Ligne de réglage de l'espace agent.
 class _SettingsTile extends StatelessWidget {
   const _SettingsTile({
+    required this.palette,
     required this.icon,
     required this.label,
     this.value,
@@ -225,6 +245,7 @@ class _SettingsTile extends StatelessWidget {
     required this.onTap,
   });
 
+  final AgentPalette palette;
   final IconData icon;
   final String label;
   final String? value;
@@ -233,7 +254,7 @@ class _SettingsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isDestructive ? AppColors.danger : AppColors.agentNavy;
+    final color = isDestructive ? palette.danger : palette.textPrimary;
     return InkWell(
       onTap: onTap,
       child: Container(
@@ -241,7 +262,7 @@ class _SettingsTile extends StatelessWidget {
         decoration: BoxDecoration(
           border: Border(
             bottom:
-                BorderSide(color: AppColors.lightBorder.withValues(alpha: 0.6)),
+                BorderSide(color: palette.border.withValues(alpha: 0.6)),
           ),
         ),
         child: Row(
@@ -254,22 +275,22 @@ class _SettingsTile extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
-                  color: isDestructive ? AppColors.danger : AppColors.agentNavy,
+                  color: color,
                 ),
               ),
             ),
             if (value != null)
               Text(
                 value!,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
-                  color: AppColors.agentTextSecondary,
+                  color: palette.textSecondary,
                 ),
               ),
             Icon(
               Icons.chevron_right,
               size: 20,
-              color: AppColors.agentTextSecondary,
+              color: palette.textSecondary,
             ),
           ],
         ),

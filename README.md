@@ -1,4 +1,4 @@
-# mariageplus_app
+# EventiaEasy
 
 A new Flutter project.
 

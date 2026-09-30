@@ -19,6 +19,7 @@ class AgentHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = AgentPalette.of(context);
     final initials = firstName.isNotEmpty ? firstName[0].toUpperCase() : 'A';
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -29,18 +30,21 @@ class AgentHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Bonjour, $firstName 👋',
-                  style: const TextStyle(
-                    color: AppColors.agentNavy,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+                  'Bonjour, $firstName',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: p.textPrimary,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    height: 1.2,
                   ),
                 ),
                 const SizedBox(height: 2),
-                const Text(
+                Text(
                   'Agent d\u2019accueil',
                   style: TextStyle(
-                    color: AppColors.agentTextSecondary,
+                    color: p.textSecondary,
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
                   ),
@@ -51,7 +55,7 @@ class AgentHeader extends StatelessWidget {
           IconButton(
             tooltip: 'Notifications',
             onPressed: onNotificationsTap,
-            icon: const Icon(Icons.notifications_none, color: AppColors.agentNavy, size: 26),
+            icon: Icon(Icons.notifications_none, color: p.textPrimary, size: 26),
           ),
           const SizedBox(width: 8),
           GestureDetector(
@@ -63,9 +67,9 @@ class AgentHeader extends StatelessWidget {
                   width: 48,
                   height: 48,
                   alignment: Alignment.center,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: AppColors.agentNavy,
+                    color: p.primary,
                   ),
                   child: Text(
                     initials,
@@ -76,7 +80,6 @@ class AgentHeader extends StatelessWidget {
                     ),
                   ),
                 ),
-                // Indicateur "actif" (vert) en bas à droite de l'avatar.
                 Positioned(
                   right: -2,
                   bottom: -2,
@@ -86,7 +89,7 @@ class AgentHeader extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: AppColors.success,
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
+                      border: Border.all(color: p.surface, width: 2),
                     ),
                   ),
                 ),

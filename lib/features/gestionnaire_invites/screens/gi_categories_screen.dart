@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../src/auth/auth_providers.dart';
-import '../../../../src/auth/auth_models.dart';
-import '../../../../src/guest/guest_api.dart';
-import '../../../../src/guest/guest_providers.dart';
-import '../../../../src/theme/gi_ui.dart';
-import '../../../../src/wedding/wedding_api.dart';
-import '../../../../src/wedding/wedding_providers.dart';
+import '../../../src/auth/auth_providers.dart';
+import '../../../src/auth/auth_models.dart';
+import '../../../src/guest/guest_api.dart';
+import '../../../src/guest/guest_providers.dart';
+import '../../../src/theme/gi_ui.dart';
+import '../../../src/wedding/wedding_api.dart';
+import '../../../src/wedding/wedding_providers.dart';
 
 /// Écran « Catégories » du rôle GESTIONNAIRE_INVITES.
 class GiCategoriesScreen extends ConsumerStatefulWidget {
@@ -86,6 +86,56 @@ class _GiCategoriesScreenState extends ConsumerState<GiCategoriesScreen> {
     }
   }
 
+  Future<void> _rename(GuestCategory category) async {
+    final w = _wedding;
+    if (w == null) return;
+    final controller = TextEditingController(text: category.name);
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Renommer'),
+        content: TextField(controller: controller, autofocus: true),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Annuler')),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+            child: const Text('Enregistrer'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (name == null || name.isEmpty) return;
+    try {
+      await ref.read(guestApiProvider).updateCategory(
+            w.id,
+            category.id,
+            name,
+            description: category.description,
+          );
+      await _load();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Modification impossible')),
+      );
+    }
+  }
+
+  Future<void> _delete(GuestCategory category) async {
+    final w = _wedding;
+    if (w == null) return;
+    try {
+      await ref.read(guestApiProvider).deleteCategory(w.id, category.id);
+      await _load();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Suppression impossible')),
+      );
+    }
+  }
+
   void _openCreate() {
     final scheme = GiPalette.of(context);
     showModalBottomSheet(
@@ -113,7 +163,7 @@ class _GiCategoriesScreenState extends ConsumerState<GiCategoriesScreen> {
             width: double.infinity, height: 50,
             child: FilledButton(
               onPressed: _adding ? null : _create,
-              style: FilledButton.styleFrom(backgroundColor: GiColors.primary),
+              style: FilledButton.styleFrom(backgroundColor: GiPalette.of(context).primary),
               child: _adding
                   ? const SizedBox(width: 20, height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2,
@@ -146,7 +196,7 @@ class _GiCategoriesScreenState extends ConsumerState<GiCategoriesScreen> {
       floatingActionButton: _canCreate
           ? FloatingActionButton(
               onPressed: _openCreate,
-              backgroundColor: GiColors.primary,
+              backgroundColor: GiPalette.of(context).primary,
               child: const Icon(Icons.add, color: Colors.white),
             )
           : null,
@@ -187,10 +237,10 @@ class _GiCategoriesScreenState extends ConsumerState<GiCategoriesScreen> {
             child: Row(children: [
               Container(width: 40, height: 40,
                   decoration: BoxDecoration(
-                      color: GiColors.primaryLightBg,
+                      color: p.primaryLightBg,
                       borderRadius: BorderRadius.circular(10)),
                   child: Icon(Icons.label_outline,
-                      size: 20, color: GiColors.primary)),
+                      size: 20, color: p.primary)),
               const SizedBox(width: 12),
               Expanded(child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -206,6 +256,16 @@ class _GiCategoriesScreenState extends ConsumerState<GiCategoriesScreen> {
                         style: TextStyle(fontSize: 12, color: p.textSecondary)),
                   ],
                 ])),
+              PopupMenuButton<String>(
+                onSelected: (value) {
+                  if (value == 'edit') _rename(c);
+                  if (value == 'delete') _delete(c);
+                },
+                itemBuilder: (context) => const [
+                  PopupMenuItem(value: 'edit', child: Text('Renommer')),
+                  PopupMenuItem(value: 'delete', child: Text('Supprimer')),
+                ],
+              ),
             ]),
           );
         },

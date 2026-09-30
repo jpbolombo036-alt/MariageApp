@@ -1,6 +1,6 @@
-# MariagePlus — reste à faire
+# EventiaEasy — reste à faire
 
-Client Flutter (`mariageplus_app`) du backend Spring Boot `com.mariageplus`.  
+Client Flutter EventiaEasy (`mariageplus_app`) du backend Spring Boot.  
 Document à jour au 20 août 2026. Le **mode démo a été retiré** : l’app parle uniquement à l’API.
 
 ## Déjà en place (ne pas refaire)
@@ -16,25 +16,25 @@ Document à jour au 20 août 2026. Le **mode démo a été retiré** : l’app p
 
 ## Priorité haute
 
-| # | Tâche | Pourquoi |
-|---|--------|----------|
-| 1 | Brancher un backend réel + `API_BASE_URL` en debug si besoin | Sans API sur `:8000`, listes / login échouent |
-| 2 | Permissions depuis `/auth/me` (codes API) au lieu de `permissionsForRoles` | La matrice locale peut diverger du RBAC backend |
-| 3 | Deep link RSVP (`mariageplus://…` ou HTTPS universel) | Aujourd’hui l’invité doit coller le jeton à la main |
-| 4 | Rafraîchir les listes après création (invité, invitation) | `pop` sans résultat → liste parent stale |
-| 5 | Pagination UI (`page` / `size` > 25) | Les listes API s’arrêtent à la 1ʳᵉ page |
+| # | Tâche | État |
+|---|--------|------|
+| 1 | Brancher un backend réel + `API_BASE_URL` en debug si besoin | Toujours requis pour exécuter l’app (défaut localhost / `10.0.2.2:8000`) |
+| 2 | Permissions depuis `/auth/me` | Fait : codes API si présents, sinon matrice de rôles. Alias `EVENT_*` / `WEDDING_*` |
+| 3 | Deep link RSVP `mariageplus://rsvp?token=` | Fait (schéma applicatif). Lien HTTPS universel encore à configurer côté domaine |
+| 4 | Rafraîchir les listes après création | Fait pour événements, invités et invitations |
+| 5 | Pagination | Fait : les listes enchaînent les pages Spring jusqu’à `last` |
 
 ## Priorité moyenne — produit
 
 | # | Tâche | Fichiers / zone |
 |---|--------|-----------------|
-| 6 | CRUD événements : update, delete, publish, archive | `wedding_*` — API absente côté client |
-| 7 | CRUD invités : update, delete | `guest_*` |
-| 8 | Envoi / renvoi d’invitation | `invitation_*` |
-| 9 | Afficher `Dashboard.categories` | `dashboard_page.dart` (DTO déjà parsé) |
-| 10 | Tables : déplacer / retirer une affectation | `TableApi.move` / `remove` existent, pas d’UI |
-| 11 | Admin : créer / modifier users, rôles, orgs | `admin_*` lecture seule |
-| 12 | Check-in : effectif > 1 par scan | Aujourd’hui toujours `numberOfAttendees: 1` |
+| 6 | CRUD événements : update, delete, publish, archive | Fait dans l’espace organisateur (`updateStatus`, `delete`) |
+| 7 | CRUD invités : update, delete | Fait sur la liste invités |
+| 8 | Envoi / renvoi d’invitation | Déjà présent sur le détail d’invitation |
+| 9 | Afficher `Dashboard.categories` | Fait |
+| 10 | Tables : déplacer / retirer une affectation | Fait sur l’écran d’affectation |
+| 11 | Admin : créer / modifier users, rôles, orgs | Lecture + ajout de membre. Édition des rôles et organisations encore absente de l’API client |
+| 12 | Check-in : effectif > 1 par scan | Fait (agent et écran jeton) |
 
 ## Priorité basse — technique & qualité
 
@@ -42,10 +42,10 @@ Document à jour au 20 août 2026. Le **mode démo a été retiré** : l’app p
 |---|--------|------|
 | 13 | Remplacer `_loading` / `_error` manuels par `AsyncNotifier` Riverpod | Moins de duplication |
 | 14 | `go_router` + deep links | Remplace `Navigator.push` impératif |
-| 15 | File d’attente refresh 401 (au lieu d’un bool `_refreshing`) | Évite de perdre des requêtes concurrentes |
+| 15 | File d’attente refresh 401 | Fait : un seul refresh partagé, les requêtes concurrentes attendent |
 | 16 | Tests : API client, auth, widgets métier | 1 seul test widget aujourd’hui |
-| 17 | Design system / thème (hors Material seed violet) | Revue visuelle produit |
-| 18 | Icônes / nom d’app store (`mariageplus_app` → MariagePlus) | Manifests Android / iOS |
+| 17 | Design system / thème | Thème clair et sombre branché (mode système + choix dans Profil) |
+| 18 | Nom d’app (`EventiaEasy`) | Libellé Android / iOS mis à jour |
 
 ## Build & run
 

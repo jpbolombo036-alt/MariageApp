@@ -115,11 +115,14 @@ class _TableListPageState extends ConsumerState<TableListPage> {
               '${t.assignedCount}/${t.capacity} · restants ${t.remainingCapacity}',
             ),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => TableAssignPage(weddingId: widget.weddingId, table: t),
-              ),
-            ),
+            onTap: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => TableAssignPage(weddingId: widget.weddingId, table: t),
+                ),
+              );
+              if (mounted) await _load();
+            },
           ),
         );
       },

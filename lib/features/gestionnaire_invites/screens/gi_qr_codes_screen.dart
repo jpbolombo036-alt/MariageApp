@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../src/guest/guest_api.dart';
-import '../../../../src/guest/guest_providers.dart';
-import '../../../../src/invitation/invitation_api.dart';
-import '../../../../src/invitation/invitation_providers.dart';
-import '../../../../src/theme/gi_ui.dart';
-import '../../../../src/wedding/wedding_providers.dart';
+import '../../../src/guest/guest_api.dart';
+import '../../../src/guest/guest_providers.dart';
+import '../../../src/invitation/invitation_api.dart';
+import '../../../src/invitation/invitation_providers.dart';
+import '../../../src/theme/gi_ui.dart';
+import '../../../src/wedding/wedding_providers.dart';
 import '../../organisateur/invitations/widgets/backend_qr_image.dart';
 import '../../organisateur/invitations/widgets/invitation_status_badge.dart';
 

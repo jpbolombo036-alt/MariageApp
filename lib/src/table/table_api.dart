@@ -91,6 +91,18 @@ class TableApi {
     final raw = await api.getList(_tablesPath(weddingId));
     return raw.whereType<Map<String, dynamic>>().map((e) => WeddingTable.fromJson(e)).toList();
   }
+  /// Toutes les affectations d'un événement (`GET .../assignments`).
+  ///
+  /// Un seul appel pour tout l'événement : l'écran « Invités » affiche ainsi
+  /// la table de chaque invité sans multiplier les requêtes.
+  Future<List<TableAssignment>> listAllAssignments(int weddingId) async {
+    final raw = await api.getList(_assignmentsPath(weddingId));
+    return raw
+        .whereType<Map<String, dynamic>>()
+        .map(TableAssignment.fromJson)
+        .toList();
+  }
+
 
   /// Création d'une table (`POST .../tables`).
   Future<WeddingTable> create(int weddingId, CreateWeddingTableRequest request) async {
@@ -135,5 +147,18 @@ class TableApi {
   /// Retirer un invité d'une table (`DELETE .../assignments/{assignmentId}`).
   Future<void> remove({required int weddingId, required int assignmentId}) async {
     await api.deleteRequest('${_assignmentsPath(weddingId)}/$assignmentId');
+  }
+
+  /// Affectations d'une table, filtrées depuis `GET .../assignments`.
+  Future<List<TableAssignment>> listAssignments({
+    required int weddingId,
+    required int tableId,
+  }) async {
+    final raw = await api.getList(_assignmentsPath(weddingId));
+    return raw
+        .whereType<Map<String, dynamic>>()
+        .map(TableAssignment.fromJson)
+        .where((item) => item.tableId == tableId)
+        .toList();
   }
 }

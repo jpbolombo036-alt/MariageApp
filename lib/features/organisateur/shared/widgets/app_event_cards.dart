@@ -42,7 +42,7 @@ class AppCurrentEventCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Ãâ°vÃÂ©nement en cours',
+                    'Événement en cours',
                     style: AppTypography.small(color: Colors.white70),
                   ),
                   const Spacer(),
@@ -84,13 +84,13 @@ class AppCurrentEventCard extends StatelessWidget {
                       foregroundColor: OrganizerColors.primaryDark,
                       minimumSize: const Size(120, 40),
                     ),
-                    child: const Text('Voir les dÃÂ©tails'),
+                    child: const Text('Voir les détails'),
                   ),
                 ],
               ),
             ),
           ),
-          // Partie droite : visuel reprÃÂ©sentatif
+          // Partie droite : visuel représentatif
           Expanded(
             flex: 4,
             child: Container(
@@ -111,7 +111,7 @@ class AppCurrentEventCard extends StatelessWidget {
     );
   }
 }
-/// Carte d'un ÃÂ©vÃÂ©nement dans la liste.
+/// Carte d'un événement dans la liste.
 class AppEventCard extends StatelessWidget {
   const AppEventCard({
     super.key,
@@ -152,7 +152,7 @@ class AppEventCard extends StatelessWidget {
           ),
           child: Row(
             children: [
-              // Visuel ÃÂ  gauche
+              // Visuel à gauche
               Container(
                 width: 104,
                 decoration: BoxDecoration(
@@ -168,7 +168,7 @@ class AppEventCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 14),
-              // Contenu ÃÂ  droite
+              // Contenu à droite
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -194,7 +194,7 @@ class AppEventCard extends StatelessWidget {
                       [
                          if (date != null) date,
                          if (venue?.isNotEmpty ?? false) venue!,
-                      ].join(' ÃÂ· '),
+                      ].join(' · '),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                        style: AppTypography.small(

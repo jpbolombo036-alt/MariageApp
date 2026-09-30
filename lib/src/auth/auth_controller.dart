@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_client.dart';
@@ -22,7 +23,11 @@ class AuthState {
   final List<String> permissions;
 
   /// Vérifie une permission (ex. `WEDDING_UPDATE`). Le backend reste l'autorité.
-  bool hasPermission(String code) => permissions.any((p) => p == code);
+  bool hasPermission(String code) {
+    if (permissions.any((p) => p == code)) return true;
+    final alias = permissionAlias(code);
+    return alias != null && permissions.any((p) => p == alias);
+  }
 
   AuthState copyWith({
     AuthUser? user,
@@ -86,6 +91,8 @@ class AuthController extends Notifier<AuthState> {
         {'email': email, 'password': password},
       );
       return _applyLogin(json);
+    } on DioException catch (error) {
+      return AuthResult.failure(_messageFromDio(error) ?? 'Erreur réseau : connexion impossible');
     } catch (_) {
       return AuthResult.failure('Erreur réseau : connexion impossible');
     }
@@ -113,27 +120,36 @@ class AuthController extends Notifier<AuthState> {
       // On déconnecte localement même si le serveur est injoignable.
     }
     await _store.clear();
-    state = AuthState.empty;
+    _api.clearAccessToken();
+    state = const AuthState(restored: true);
   }
 
-  AuthResult _applyLogin(Map<String, dynamic> json) {
+  Future<AuthResult> _applyLogin(Map<String, dynamic> json) async {
     if (json.containsKey('error')) {
       return AuthResult.failure('Identifiants invalides');
     }
     final login = LoginResponse.fromJson(json);
-    _api.setAccessToken(login.accessToken);
-    _store.save(
+    await _store.save(
       accessToken: login.accessToken,
       refreshToken: login.refreshToken,
       expiresIn: login.expiresIn,
     );
+    _api.setAccessToken(login.accessToken);
     state = AuthState(
       user: login.user,
       isAuthenticated: true,
       restored: true,
-      permissions: permissionsForRoles(login.user.roles),
+      permissions: permissionsFromPayload(json, login.user.roles),
     );
     return AuthResult.success();
+  }
+
+  String? _messageFromDio(DioException error) {
+    final data = error.response?.data;
+    if (data is Map && data['error'] != null) {
+      return data['error'].toString();
+    }
+    return null;
   }
 
   Future<bool> _fetchMe() async {
@@ -147,7 +163,7 @@ class AuthController extends Notifier<AuthState> {
       state = state.copyWith(
         user: user,
         isAuthenticated: true,
-        permissions: permissionsForRoles(user.roles),
+        permissions: permissionsFromPayload(json, user.roles),
       );
       return true;
     } catch (_) {

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
@@ -6,7 +7,7 @@ import '../auth/auth_models.dart';
 import '../auth/secure_token_store.dart';
 import 'api_config.dart';
 
-/// Client HTTP central (Dio) pour MariagePlus.
+/// Client HTTP central (Dio) pour EventiaEasy.
 ///
 /// - Injecte automatiquement `Authorization: Bearer <accessToken>`.
 /// - Sur `401` d'une requête authentifiée (hors `/auth/refresh`) : tente un
@@ -39,13 +40,18 @@ class ApiClient {
       receiveTimeout: const Duration(seconds: 30),
     ),
   );
-  bool _refreshing = false;
+  Future<bool>? _refreshInFlight;
 
   Dio get dio => _dio;
 
   /// Met à jour le Bearer global (appelé après login/refresh).
   void setAccessToken(String token) {
     _dio.options.headers['Authorization'] = 'Bearer $token';
+  }
+
+  /// Retire le Bearer mémoire (logout ou session révoquée).
+  void clearAccessToken() {
+    _dio.options.headers.remove('Authorization');
   }
 
   /// Changement du mot de passe de l'utilisateur connecté
@@ -72,6 +78,9 @@ class ApiClient {
     final token = await tokenStore.readAccessToken();
     if (token != null && token.isNotEmpty) {
       options.headers['Authorization'] = 'Bearer $token';
+    } else {
+      // Sinon le Bearer révoqué au logout reste collé et bloque le prochain login.
+      options.headers.remove('Authorization');
     }
     handler.next(options);
     return null;
@@ -82,52 +91,79 @@ class ApiClient {
     ErrorInterceptorHandler handler,
   ) async {
     final bool isUnauthorized = e.response?.statusCode == 401;
-    final bool isRefreshPath = e.requestOptions.path == ApiConfig.authRefresh;
+    final path = e.requestOptions.path;
+    final bool isRefreshPath = path == ApiConfig.authRefresh;
+    final bool isCredentialAttempt =
+        path == ApiConfig.authLogin || path == ApiConfig.authRegister;
+    final bool alreadyRetried = e.requestOptions.extra['authRetried'] == true;
 
-    if (isUnauthorized && !isRefreshPath && !_refreshing) {
-      _refreshing = true;
-      try {
-        final refreshToken = await tokenStore.readRefreshToken();
-        if (refreshToken != null && refreshToken.isNotEmpty) {
-          final refreshed = await _dio.post<dynamic>(
-            ApiConfig.authRefresh,
-            data: refreshToken,
-            options: Options(headers: {'Content-Type': 'application/json'}),
-          );
-          final json = _decodeMap(refreshed.data);
-          if (json != null) {
-            final login = LoginResponse.fromJson(json);
-            await tokenStore.save(
-              accessToken: login.accessToken,
-              refreshToken: login.refreshToken,
-              expiresIn: login.expiresIn,
-            );
-            setAccessToken(login.accessToken);
-            // Rejoue la requête initiale UNE fois.
-            final response = await _dio.request<dynamic>(
-              e.requestOptions.path,
-              data: e.requestOptions.data,
-              queryParameters: e.requestOptions.queryParameters,
-              options: Options(
-                method: e.requestOptions.method,
-                headers: e.requestOptions.headers,
-              ),
-            );
-            handler.resolve(response);
-            return null;
+    if (isUnauthorized && !isRefreshPath && !isCredentialAttempt && !alreadyRetried) {
+      final refreshed = await _refreshSession();
+      if (refreshed) {
+        try {
+          e.requestOptions.extra['authRetried'] = true;
+          final response = await _dio.fetch<dynamic>(e.requestOptions);
+          handler.resolve(response);
+          return null;
+        } catch (err) {
+          if (err is DioException && err.response?.statusCode == 401) {
+            await _expireSession();
           }
+          if (err is DioException) {
+            handler.next(err);
+          } else {
+            handler.next(e);
+          }
+          return null;
         }
-      } catch (_) {
-        // Échec du refresh → on laisse tomber (déconnexion).
-      } finally {
-        _refreshing = false;
       }
-      await tokenStore.clear();
-      if (onSessionExpired != null) await onSessionExpired!();
+      await _expireSession();
     }
 
     handler.next(e);
     return null;
+  }
+
+  /// Un seul refresh pour toutes les requêtes 401 concurrentes.
+  Future<bool> _refreshSession() {
+    final inFlight = _refreshInFlight;
+    if (inFlight != null) return inFlight;
+    final future = _performRefresh();
+    _refreshInFlight = future;
+    return future.whenComplete(() => _refreshInFlight = null);
+  }
+
+  Future<bool> _performRefresh() async {
+    try {
+      final refreshToken = await tokenStore.readRefreshToken();
+      if (refreshToken == null || refreshToken.isEmpty) return false;
+      final refreshed = await _dio.post<dynamic>(
+        ApiConfig.authRefresh,
+        data: refreshToken,
+        options: Options(
+          headers: {'Content-Type': 'application/json'},
+          extra: const {'authRetried': true},
+        ),
+      );
+      final json = _decodeMap(refreshed.data);
+      if (json == null) return false;
+      final login = LoginResponse.fromJson(json);
+      await tokenStore.save(
+        accessToken: login.accessToken,
+        refreshToken: login.refreshToken,
+        expiresIn: login.expiresIn,
+      );
+      setAccessToken(login.accessToken);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _expireSession() async {
+    await tokenStore.clear();
+    clearAccessToken();
+    if (onSessionExpired != null) await onSessionExpired!();
   }
 
   Map<String, dynamic>? _decodeMap(dynamic data) {
@@ -187,21 +223,136 @@ class ApiClient {
     await _dio.delete<dynamic>(path);
   }
 
-  /// GET retournant une liste JSON (ex. `PageResponse.content`).
+  /// GET retournant une liste JSON.
   ///
-  /// [contentKey] désigne le champ de la liste dans la réponse paginée
-  /// (défaut `content` pour `PageResponse`).
+  /// Accepte un tableau brut ou une page Spring (`content`).
   Future<List<dynamic>> getList(
     String path, {
     Map<String, dynamic>? queryParameters,
     String contentKey = 'content',
   }) async {
+    final response = await _dio.get<dynamic>(
+      path,
+      queryParameters: queryParameters,
+    );
+    final data = response.data;
+    if (data is List) return data;
+    final json = _decodeMap(data) ?? <String, dynamic>{};
+    final content = json[contentKey];
+    if (content is List) return content;
+    return const [];
+  }
+
+  /// Page Spring (`content`, `last`, `number`, `totalElements`).
+  Future<ApiPage> getPage(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+    String contentKey = 'content',
+  }) async {
     final json = await getJson(path, queryParameters: queryParameters);
-    return json[contentKey] as List<dynamic>? ?? const [];
+    final content = json[contentKey] as List<dynamic>? ?? const [];
+    final hasPaging = json.containsKey('last') || json.containsKey('totalPages');
+    final lastFlag = json['last'] as bool? ?? true;
+    return ApiPage(
+      content: content,
+      last: !hasPaging || lastFlag || content.isEmpty,
+      number: (json['number'] as num?)?.toInt() ?? 0,
+      totalElements: (json['totalElements'] as num?)?.toInt() ?? content.length,
+    );
+  }
+
+  /// Enchaîne les pages Spring jusqu'à `last` (plafond de sûreté).
+  Future<List<Map<String, dynamic>>> getAllMaps(
+    String path, {
+    int size = 25,
+    Map<String, dynamic>? queryParameters,
+    int maxPages = 40,
+  }) async {
+    final all = <Map<String, dynamic>>[];
+    for (var page = 0; page < maxPages; page++) {
+      final slice = await getPage(
+        path,
+        queryParameters: {
+          ...?queryParameters,
+          'page': page,
+          'size': size,
+        },
+      );
+      all.addAll(slice.content.whereType<Map<String, dynamic>>());
+      if (slice.last) break;
+    }
+    return all;
   }
 
   /// POST renvoyant 204 / 200 sans corps (logout).
   Future<void> postNoContent(String path) async {
     await _dio.post<dynamic>(path);
   }
+
+  /// GET JSON qui peut répondre 204 (aucun contenu).
+  Future<Map<String, dynamic>?> getJsonOrNull(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+  }) async {
+    final response = await _dio.get<dynamic>(
+      path,
+      queryParameters: queryParameters,
+    );
+    if (response.statusCode == 204 || response.data == null) return null;
+    final map = _decodeMap(response.data);
+    if (map == null || map.isEmpty) return null;
+    return map;
+  }
+
+  /// GET d'un entier JSON nu (ex. un compteur).
+  Future<int> getInt(String path) async {
+    final response = await _dio.get<dynamic>(path);
+    final data = response.data;
+    if (data is num) return data.toInt();
+    if (data is String) return int.tryParse(data) ?? 0;
+    return 0;
+  }
+
+  /// GET binaire (CSV, Excel, PDF, image).
+  Future<Uint8List> getBytes(String path) async {
+    final response = await _dio.get<List<int>>(
+      path,
+      options: Options(responseType: ResponseType.bytes),
+    );
+    final data = response.data;
+    if (data == null) return Uint8List(0);
+    return Uint8List.fromList(data);
+  }
+
+  /// POST multipart (import CSV, photo).
+  Future<Map<String, dynamic>> postForm(String path, FormData data) async {
+    final response = await _dio.post<dynamic>(path, data: data);
+    return _decodeMap(response.data) ?? <String, dynamic>{};
+  }
+
+  /// POST multipart binaire brut (`file`) pour upload d’images.
+  Future<void> postMultipart(String path,
+      {required List<int> bytes, required String contentType}) async {
+    final part = MultipartFile.fromBytes(
+      bytes,
+      contentType: DioMediaType.parse(contentType),
+      filename: 'upload',
+    );
+    await _dio.post<dynamic>(path, data: FormData.fromMap({'file': part}));
+  }
+}
+
+/// Tranche de pagination Spring Boot.
+class ApiPage {
+  const ApiPage({
+    required this.content,
+    required this.last,
+    required this.number,
+    required this.totalElements,
+  });
+
+  final List<dynamic> content;
+  final bool last;
+  final int number;
+  final int totalElements;
 }

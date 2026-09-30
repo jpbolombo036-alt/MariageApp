@@ -1,12 +1,18 @@
 plugins {
     id("com.android.application")
+    id("org.jetbrains.kotlin.android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
 android {
     namespace = "com.mariageplus.mariageplus_app"
-    compileSdk = flutter.compileSdkVersion
+    // API 36 = valeur par défaut de cette version de Flutter. On évite l'API 37 :
+    // le SDK local ne l'expose que comme « platforms;android-37.0 » (nouveau schéma
+    // « minor version » d'Android 17) et AGP 9.0.1, en DSL hérité (android.newDsl=false),
+    // cherche « android-37 » puis échoue avec :
+    //   Failed to find target with hash string 'android-37' in: C:\Android\Sdk
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

@@ -17,41 +17,42 @@ class AttendanceStatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = AgentPalette.of(context);
     return Expanded(
       child: Container(
         height: 140,
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: p.surface,
           borderRadius: BorderRadius.circular(22),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 12,
-              offset: const Offset(0, 6),
-            ),
-          ],
+          border: Border.all(color: p.border),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: AppColors.agentGold, size: 24),
+            Icon(icon, color: p.primary, size: 24),
             const Spacer(),
             Text(
               value,
-              style: const TextStyle(
-                color: AppColors.agentNavy,
-                fontSize: 34,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: p.textPrimary,
+                fontSize: 32,
                 fontWeight: FontWeight.bold,
+                height: 1,
               ),
             ),
             const SizedBox(height: 2),
             Text(
               label,
-              style: const TextStyle(
-                color: AppColors.agentTextSecondary,
-                fontSize: 14,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: p.textSecondary,
+                fontSize: 13,
                 fontWeight: FontWeight.w500,
+                height: 1.2,
               ),
             ),
           ],

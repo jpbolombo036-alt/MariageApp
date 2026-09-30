@@ -15,6 +15,9 @@ class Invitation {
     this.lastSentAt,
     this.reminderCount = 0,
     this.openedAt,
+    this.deliveredAt,
+    this.createdAt,
+    this.updatedAt,
   });
 
   final int id;
@@ -26,6 +29,9 @@ class Invitation {
   final String? lastSentAt;
   final int reminderCount;
   final String? openedAt;
+  final String? deliveredAt;
+  final String? createdAt;
+  final String? updatedAt;
 
   factory Invitation.fromJson(Map<String, dynamic> json) => Invitation(
         id: (json['id'] as num).toInt(),
@@ -37,6 +43,9 @@ class Invitation {
         lastSentAt: json['lastSentAt'] as String?,
         reminderCount: (json['reminderCount'] as num?)?.toInt() ?? 0,
         openedAt: json['openedAt'] as String?,
+        deliveredAt: json['deliveredAt'] as String?,
+        createdAt: json['createdAt'] as String?,
+        updatedAt: json['updatedAt'] as String?,
       );
 }
 
@@ -66,13 +75,11 @@ class InvitationApi {
   String _path(int weddingId) =>
       '${ApiConfig.eventsPath}/$weddingId/invitations';
 
-  /// Liste paginée des invitations (`GET .../invitations`).
-  Future<List<Invitation>> list(int weddingId, {int page = 0, int size = 25}) async {
-    final raw = await api.getList(
-      _path(weddingId),
-      queryParameters: {'page': page, 'size': size},
-    );
-    return raw.whereType<Map<String, dynamic>>().map((e) => Invitation.fromJson(e)).toList();
+  /// Liste des invitations (`GET .../invitations`), toutes les pages Spring.
+  Future<List<Invitation>> list(int weddingId, {int size = 25}) async {
+    final pageSize = size < 25 ? 25 : size;
+    final raw = await api.getAllMaps(_path(weddingId), size: pageSize);
+    return raw.map(Invitation.fromJson).toList();
   }
 
   /// Envoi d'une invitation (`POST .../invitations/{id}/send`).
@@ -117,6 +124,30 @@ class InvitationApi {
   /// Suppression d'une invitation (`DELETE .../invitations/{id}`).
   Future<void> delete(int weddingId, int invitationId) async {
     await api.deleteRequest('${_path(weddingId)}/$invitationId');
+  }
+
+  /// Modification administrative (`PUT .../invitations/{id}`).
+  Future<Invitation> update(
+    int weddingId,
+    int invitationId, {
+    String? status,
+  }) async {
+    final json = await api.putJson(
+      '${_path(weddingId)}/$invitationId',
+      {if (status != null) 'status': status},
+    );
+    return Invitation.fromJson(json);
+  }
+
+  /// Invités sans réponse (`GET .../invitations/pending-rsvp`).
+  Future<List<Invitation>> listNonResponders(int weddingId) async {
+    final raw = await api.getList('${_path(weddingId)}/pending-rsvp');
+    return raw.whereType<Map<String, dynamic>>().map(Invitation.fromJson).toList();
+  }
+
+  /// Nombre d'invités sans réponse (entier JSON).
+  Future<int> countNonResponders(int weddingId) async {
+    return api.getInt('${_path(weddingId)}/pending-rsvp/count');
   }
 
   String _bulkPath(int weddingId) => '${_path(weddingId)}/send-bulk';

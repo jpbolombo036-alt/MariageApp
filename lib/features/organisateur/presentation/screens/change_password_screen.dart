@@ -115,20 +115,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
       style: TextStyle(fontSize: 14, color: scheme.onSurface),
       validator: validator ??
           ((v) => (v == null || v.isEmpty) ? 'Requis' : null),
-      decoration: InputDecoration(
-        labelText: label,
-        filled: true,
-        fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppRadius.field),
-            borderSide: BorderSide(color: scheme.outlineVariant)),
-        enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppRadius.field),
-            borderSide: BorderSide(color: scheme.outlineVariant)),
-        focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppRadius.field),
-            borderSide: BorderSide(color: scheme.primary, width: 1.5)),
-      ),
+      decoration: InputDecoration(labelText: label),
     );
   }
 }

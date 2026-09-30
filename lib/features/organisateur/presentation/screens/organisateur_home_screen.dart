@@ -6,7 +6,7 @@ import '../../shared/widgets/app_states.dart';
 import '../../shared/widgets/app_organizer_bottom_nav.dart';
 import 'calendrier_onglet.dart';
 import 'evenement_create_stepper_screen.dart';
-import 'invites_screen.dart';
+import 'guests_management_screen.dart';
 import 'mes_evenements_screen.dart';
 import 'organisateur_plus_tab.dart';
 
@@ -29,7 +29,7 @@ class _OrganisateurHomeScreenState
         index: _tab.index,
         children: [
           const MesEvenementsScreen(embedded: true),
-          const _GuestsTab(),
+          _GuestsTab(onBack: () => setState(() => _tab = OrganizerTab.home)),
           const SizedBox.shrink(),
           const CalendrierOnglet(),
           const OrganizerMoreTab(),
@@ -50,18 +50,23 @@ class _OrganisateurHomeScreenState
     setState(() => _tab = tab);
   }
 
-  void _openCreate() {
-    Navigator.of(context).push(
+  Future<void> _openCreate() async {
+    final created = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => const EvenementCreateStepperScreen(),
       ),
     );
+    if (created == true) {
+      ref.read(weddingListRevisionProvider.notifier).bump();
+    }
   }
 }
 
 
 class _GuestsTab extends ConsumerStatefulWidget {
-  const _GuestsTab();
+  const _GuestsTab({required this.onBack});
+
+  final VoidCallback onBack;
 
   @override
   ConsumerState<_GuestsTab> createState() => _GuestsTabState();
@@ -122,7 +127,10 @@ class _GuestsTabState extends ConsumerState<_GuestsTab> {
             'Créez d\u2019abord un événement pour gérer vos invités.',
       );
     }
-    return OrganisateurGuestsScreen(weddingId: _weddingId!);
+    return GuestsManagementScreen(
+      weddingId: _weddingId!,
+      onBack: widget.onBack,
+    );
   }
 }
 

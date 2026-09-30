@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../theme/app_colors.dart';
+import '../../theme/app_theme.dart';
 
 /// Champ de saisie stylisé de l'écran de connexion.
 ///
@@ -50,17 +51,22 @@ class _AuthTextFieldState extends State<AuthTextField> {
 
   @override
   Widget build(BuildContext context) {
-    final baseStyle = GoogleFonts.inter(fontSize: 16, color: AppColors.primaryNavy);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = dark ? OrganizerColors.darkText : AppColors.primaryNavy;
+    final fill = dark ? OrganizerColors.darkBackground : const Color(0xFFF7F6F3);
+    final border = dark ? OrganizerColors.darkBorder : AppColors.border;
+    final hint = dark ? OrganizerColors.darkSecondary : AppColors.textPlaceholder;
+    final baseStyle = GoogleFonts.inter(fontSize: 16, color: textColor);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Label
         Text(
           widget.label,
           style: GoogleFonts.inter(
-            fontSize: 15,
+            fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: AppColors.primaryNavy,
+            color: textColor,
+            letterSpacing: 0.1,
           ),
         ),
         const SizedBox(height: 8),
@@ -75,36 +81,36 @@ class _AuthTextFieldState extends State<AuthTextField> {
           style: baseStyle,
           decoration: InputDecoration(
             hintText: widget.hint,
-            hintStyle: GoogleFonts.inter(color: AppColors.textPlaceholder, fontSize: 16),
+            hintStyle: GoogleFonts.inter(color: hint, fontSize: 15),
             prefixIcon: widget.prefixIcon != null
-                ? Icon(widget.prefixIcon, color: AppColors.primaryNavy, size: 22)
+                ? Icon(widget.prefixIcon, color: hint, size: 20)
                 : null,
             suffixIcon: widget.enableObscureToggle
                 ? IconButton(
                     icon: Icon(
                       _obscured ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                      color: AppColors.primaryNavy,
+                      color: hint,
                     ),
                     onPressed: () => setState(() => _obscured = !_obscured),
                   )
                 : null,
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             filled: true,
-            fillColor: AppColors.surface,
+            fillColor: fill,
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(11),
-              borderSide: const BorderSide(color: AppColors.border, width: 1),
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: border, width: 1),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(11),
-              borderSide: const BorderSide(color: AppColors.primaryNavy, width: 1.3),
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: OrganizerColors.primary, width: 1.4),
             ),
             errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(11),
+              borderRadius: BorderRadius.circular(14),
               borderSide: const BorderSide(color: Color(0xFFB00020), width: 1),
             ),
             focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(11),
+              borderRadius: BorderRadius.circular(14),
               borderSide: const BorderSide(color: Color(0xFFB00020), width: 1.3),
             ),
             errorStyle: GoogleFonts.inter(fontSize: 13, color: const Color(0xFFB00020)),

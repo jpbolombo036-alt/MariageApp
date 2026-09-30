@@ -29,7 +29,7 @@ class OrganizerHomeHeader extends StatelessWidget {
             ),
             child: Center(
               child: Text(
-                'M',
+                'E',
                 style: AppTypography.cardTitle(color: Colors.white)
                     .copyWith(fontSize: 18, fontWeight: FontWeight.w700),
               ),
@@ -40,7 +40,7 @@ class OrganizerHomeHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'MariagePlus',
+                'EventiaEasy',
                 style: AppTypography.cardTitle(color: scheme.onSurface)
                     .copyWith(fontSize: 18, fontWeight: FontWeight.w700),
               ),

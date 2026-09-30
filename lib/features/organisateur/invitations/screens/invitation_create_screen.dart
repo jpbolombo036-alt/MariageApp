@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,8 +12,15 @@ import '../../../../src/wedding/wedding_providers.dart';
 import '../widgets/step_guest.dart';
 
 /// Écran « Nouvelle invitation » — formulaire en 3 étapes.
+///
+/// Si [weddingId] est fourni, l'invitation porte sur cet événement ; sinon le
+/// premier événement de l'utilisateur est utilisé (comportement historique des
+/// modules sans sélecteur d'événement).
 class InvitationCreateScreen extends ConsumerStatefulWidget {
-  const InvitationCreateScreen({super.key});
+  const InvitationCreateScreen({super.key, this.weddingId});
+
+  /// Événement ciblé (facultatif).
+  final int? weddingId;
 
   @override
   ConsumerState<InvitationCreateScreen> createState() =>
@@ -42,17 +50,26 @@ class _InvitationCreateScreenState extends ConsumerState<InvitationCreateScreen>
       _error = null;
     });
     try {
-      final weddings = await ref.read(weddingApiProvider).list(size: 25);
-      if (!mounted) return;
-      if (weddings.isEmpty) {
-        setState(() {
-          _loading = false;
-          _wedding = null;
-        });
-        return;
+      final weddingApi = ref.read(weddingApiProvider);
+      final targetId = widget.weddingId;
+      late final Wedding wedding;
+      if (targetId != null) {
+        wedding = await weddingApi.getById(targetId);
+      } else {
+        final weddings = await weddingApi.list(size: 25);
+        if (!mounted) return;
+        if (weddings.isEmpty) {
+          setState(() {
+            _loading = false;
+            _wedding = null;
+          });
+          return;
+        }
+        wedding = weddings.first;
       }
-      final wedding = weddings.first;
-      final guests = await ref.read(guestApiProvider).listGuests(wedding.id, size: 200);
+      final guests = await ref
+          .read(guestApiProvider)
+          .listGuests(wedding.id, size: 200);
       if (!mounted) return;
       setState(() {
         _wedding = wedding;
@@ -63,7 +80,7 @@ class _InvitationCreateScreenState extends ConsumerState<InvitationCreateScreen>
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Erreur';
+        _error = 'Impossible de charger l\'événement et ses invités';
       });
     }
   }
@@ -79,13 +96,39 @@ class _InvitationCreateScreenState extends ConsumerState<InvitationCreateScreen>
           .create(w.id, CreateInvitationRequest(guestId: g.id));
       if (!mounted) return;
       Navigator.of(context).pop(true);
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       setState(() => _submitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Impossible de créer l\u2019invitation')),
-      );
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(_errorMessage(error))));
     }
+  }
+
+  /// Message lisible : le détail renvoyé par le backend prime.
+  String _errorMessage(Object error) {
+    if (error is DioException) {
+      final data = error.response?.data;
+      if (data is Map) {
+        final message = data['message'] ?? data['error'];
+        if (message != null && message.toString().trim().isNotEmpty) {
+          return message.toString();
+        }
+      }
+      final code = error.response?.statusCode;
+      switch (code) {
+        case 400:
+          return 'Données invalides : vérifiez l\'invité sélectionné';
+        case 403:
+          return 'Action non autorisée pour votre rôle';
+        case 404:
+          return 'Invité ou événement introuvable';
+        case 409:
+          return 'Une invitation existe déjà pour cet invité';
+      }
+      return 'Impossible de créer l\'invitation (${code ?? 'réseau'})';
+    }
+    return 'Impossible de créer l\'invitation';
   }
 
   Future<void> _pickGuest() async {

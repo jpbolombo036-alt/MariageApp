@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../src/auth/auth_providers.dart';
 import '../../../../src/auth/auth_models.dart';
+import '../../../../src/dashboard/dashboard_providers.dart';
 import '../../../../src/theme/app_theme.dart';
 import '../../../../src/wedding/wedding_api.dart';
+import '../../../../src/wedding/wedding_detail_page.dart';
 import '../../../../src/wedding/wedding_providers.dart';
 import '../../shared/widgets/app_organizer_bottom_nav.dart';
 import 'evenement_create_stepper_screen.dart';
@@ -126,11 +128,15 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<int>(weddingListRevisionProvider, (previous, next) {
+      if (previous != next) _load();
+    });
     final auth = ref.watch(authControllerProvider);
     final canCreate = auth.hasPermission(PermissionCodes.weddingCreate);
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
+      // Fond blanc de la maquette (les cartes se détachent par leur ombre).
       backgroundColor: scheme.surface,
       body: SafeArea(
         child: Column(
@@ -197,13 +203,13 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF4E249E), Color(0xFF6B38D0)],
+                    colors: [OrganizerColors.primaryDark, OrganizerColors.primary],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF6B38D0).withValues(alpha: 0.35),
+                      color: OrganizerColors.primary.withValues(alpha: 0.35),
                       blurRadius: 16,
                       offset: const Offset(0, 6),
                     ),
@@ -217,144 +223,162 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
   }
 
   Widget _buildHeader(ColorScheme scheme, bool canCreate) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xl,
-        vertical: AppSpacing.md,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.xl,
+        AppSpacing.sm,
+        AppSpacing.xl,
+        0,
       ),
-      decoration: BoxDecoration(
-        color: scheme.surface,
-        border: Border(
-          bottom: BorderSide(color: scheme.outline.withValues(alpha: 0.3)),
-        ),
-      ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          IconButton(
-            onPressed:
-                widget.embedded ? () {} : () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.menu, size: 24),
-            style: IconButton.styleFrom(
-              minimumSize: const Size(44, 44),
-              padding: EdgeInsets.zero,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Mes événements',
-                  style: AppTypography.cardTitle(
-                    color: scheme.onSurface,
-                  ).copyWith(fontSize: 18, fontWeight: FontWeight.w700),
-                ),
-                Text(
-                  'Organisateur',
-                  style: AppTypography.small(color: scheme.onSurfaceVariant),
-                ),
-              ],
-            ),
-          ),
-          if (canCreate)
-            Container(
-              height: 42,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF4E249E), Color(0xFF6B38D0)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(AppRadius.button),
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: _openCreate,
-                  borderRadius: BorderRadius.circular(AppRadius.button),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.add, color: Colors.white, size: 18),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Nouvel événement',
-                          style: AppTypography.small(
-                            color: Colors.white,
-                          ).copyWith(fontWeight: FontWeight.w600, fontSize: 10),
-                        ),
-                      ],
+          Row(
+            children: [
+              if (!widget.embedded)
+                Padding(
+                  padding: const EdgeInsets.only(right: AppSpacing.sm),
+                  child: IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+                    style: IconButton.styleFrom(
+                      minimumSize: const Size(40, 40),
+                      padding: EdgeInsets.zero,
                     ),
                   ),
                 ),
+              // Pill « ESPACE ORGANISATEUR ».
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: scheme.primary.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: scheme.primary,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 7),
+                    Text(
+                      'ESPACE ORGANISATEUR',
+                      style: AppTypography.small(color: scheme.primary).copyWith(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                  ],
+                ),
               ),
+              const Spacer(),
+              if (canCreate) _buildHeaderAction(scheme),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Mes événements',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.display(color: scheme.onSurface).copyWith(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.6,
             ),
+          ),
         ],
       ),
     );
   }
 
+  /// Bouton « + » arrondi de l'en-tête (création d'un événement).
+  Widget _buildHeaderAction(ColorScheme scheme) {
+    return GestureDetector(
+      onTap: _openCreate,
+      child: Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: scheme.primary,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: scheme.primary.withValues(alpha: 0.30),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: const Icon(Icons.add, color: Colors.white, size: 26),
+      ),
+    );
+  }
+
   Widget _buildSearchBar(ColorScheme scheme) {
+    final isDark = scheme.brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
       child: Row(
         children: [
           Expanded(
             child: Container(
-              height: 56,
+              height: 52,
               decoration: BoxDecoration(
-                color: scheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-                border: Border.all(
-                  color: scheme.outline.withValues(alpha: 0.3),
-                ),
+                color: isDark
+                    ? scheme.surfaceContainerHighest
+                    : OrganizerColors.fieldFill,
+                borderRadius: BorderRadius.circular(26),
               ),
               child: TextField(
                 controller: _searchController,
                 onChanged: (v) => setState(() => _searchQuery = v),
+                textAlignVertical: TextAlignVertical.center,
                 style: AppTypography.body(color: scheme.onSurface),
                 decoration: InputDecoration(
-                  hintText: 'Rechercher un événement...',
+                  hintText: 'Rechercher un événement…',
                   hintStyle: AppTypography.body(color: scheme.onSurfaceVariant),
                   prefixIcon: Icon(
                     Icons.search,
                     size: 22,
                     color: scheme.onSurfaceVariant,
                   ),
+                  filled: false,
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 0),
                   border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
-                  ),
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
                 ),
               ),
             ),
           ),
           const SizedBox(width: AppSpacing.md),
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-              border: Border.all(color: scheme.outline.withValues(alpha: 0.3)),
-            ),
-            child: IconButton(
-              onPressed: _showSortOptions,
-              icon: Icon(Icons.sort_rounded, size: 22, color: scheme.onSurface),
-              style: IconButton.styleFrom(
-                minimumSize: const Size(48, 48),
-                padding: EdgeInsets.zero,
-              ),
-            ),
-          ),
+          _buildFilterButton(scheme),
         ],
+      ),
+    );
+  }
+
+  /// Bouton filtre / tri, à droite du champ de recherche.
+  Widget _buildFilterButton(ColorScheme scheme) {
+    return GestureDetector(
+      onTap: _showSortOptions,
+      child: Container(
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          color: scheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: scheme.outline.withValues(alpha: 0.4)),
+          boxShadow: AppShadows.subtle(scheme.shadow, blur: 10),
+        ),
+        child: Icon(Icons.tune_rounded, size: 22, color: scheme.onSurface),
       ),
     );
   }
@@ -369,32 +393,44 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
             final selected = _filter == f;
             return Padding(
               padding: const EdgeInsets.only(right: AppSpacing.sm),
-              child: FilterChip(
-                label: Text(f.label),
-                selected: selected,
-                onSelected: (v) {
-                  if (v) setState(() => _filter = f);
-                },
-                backgroundColor: scheme.surfaceContainerHighest,
-                selectedColor: scheme.primary,
-                labelStyle: AppTypography.small(
-                  color: selected ? scheme.onPrimary : scheme.onSurface,
-                ).copyWith(fontSize: 13, fontWeight: FontWeight.w500),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  side: BorderSide(
-                    color: selected
-                        ? scheme.primary
-                        : scheme.outline.withValues(alpha: 0.3),
-                    width: 1,
+              child: GestureDetector(
+                onTap: () => setState(() => _filter = f),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: selected ? scheme.primary : scheme.surface,
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(
+                      color: selected
+                          ? scheme.primary
+                          : scheme.outline.withValues(alpha: 0.5),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (selected) ...[
+                        const Icon(
+                          Icons.check_rounded,
+                          size: 15,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                      Text(
+                        f.label,
+                        style: AppTypography.small(
+                          color: selected ? Colors.white : scheme.onSurface,
+                        ).copyWith(fontSize: 13, fontWeight: FontWeight.w600),
+                      ),
+                    ],
                   ),
                 ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 10,
-                ),
-                labelPadding: EdgeInsets.zero,
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
             );
           }).toList(),
@@ -406,61 +442,50 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
   Widget _buildStatsCard(ColorScheme scheme) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.lg,
+      ),
       decoration: BoxDecoration(
         color: scheme.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: scheme.outline.withValues(alpha: 0.3)),
+        border: Border.all(color: scheme.outline.withValues(alpha: 0.5)),
+        boxShadow: AppShadows.subtle(scheme.shadow),
       ),
       child: Row(
         children: [
           Expanded(
             child: _StatItem(
-              icon: Icons.calendar_today_outlined,
-              iconBg: scheme.primaryContainer,
+              icon: Icons.grid_view_rounded,
+              iconBg: scheme.primary.withValues(alpha: 0.12),
               iconColor: scheme.primary,
               value: '$_totalCount',
               label: 'Total',
             ),
           ),
-          Container(
-            width: 1,
-            height: 40,
-            color: scheme.outline.withValues(alpha: 0.3),
-          ),
           Expanded(
             child: _StatItem(
-              icon: Icons.verified_outlined,
-              iconBg: const Color(0xFFE8F5E9),
-              iconColor: const Color(0xFF22C55E),
+              icon: Icons.verified_user_outlined,
+              iconBg: OrganizerColors.successBg,
+              iconColor: OrganizerColors.success,
               value: '$_activeCount',
               label: 'En cours',
             ),
           ),
-          Container(
-            width: 1,
-            height: 40,
-            color: scheme.outline.withValues(alpha: 0.3),
-          ),
           Expanded(
             child: _StatItem(
-              icon: Icons.schedule_outlined,
-              iconBg: const Color(0xFFFFFBEB),
-              iconColor: const Color(0xFFF59E0B),
+              icon: Icons.schedule_rounded,
+              iconBg: OrganizerColors.warningBg,
+              iconColor: OrganizerColors.warning,
               value: '$_upcomingCount',
               label: 'À venir',
             ),
           ),
-          Container(
-            width: 1,
-            height: 40,
-            color: scheme.outline.withValues(alpha: 0.3),
-          ),
           Expanded(
             child: _StatItem(
-              icon: Icons.archive_outlined,
-              iconBg: scheme.surfaceContainerHighest,
-              iconColor: scheme.onSurfaceVariant,
+              icon: Icons.inventory_2_outlined,
+              iconBg: OrganizerColors.infoBg,
+              iconColor: OrganizerColors.info,
               value: '$_pastCount',
               label: 'Passés',
             ),
@@ -471,21 +496,48 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
   }
 
   Widget _buildListHeader(ColorScheme scheme) {
+    final isDark = scheme.brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            'Liste des événements',
-            style: AppTypography.sectionTitle(color: scheme.onSurface),
+          Flexible(
+            child: Text(
+              'Liste des événements',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.sectionTitle(color: scheme.onSurface)
+                  .copyWith(fontSize: 17, fontWeight: FontWeight.w700),
+            ),
           ),
+          const SizedBox(width: AppSpacing.sm),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? scheme.surfaceContainerHighest
+                  : OrganizerColors.fieldFill,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              '${_filteredEvents.length}',
+              style: AppTypography.small(color: scheme.onSurfaceVariant)
+                  .copyWith(fontSize: 11.5, fontWeight: FontWeight.w700),
+            ),
+          ),
+          const Spacer(),
           TextButton.icon(
             onPressed: _showSortOptions,
             icon: Icon(Icons.sort_rounded, size: 18, color: scheme.primary),
             label: Text(
               'Trier',
-              style: AppTypography.small(color: scheme.primary),
+              style: AppTypography.small(color: scheme.primary)
+                  .copyWith(fontWeight: FontWeight.w600),
+            ),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
           ),
         ],
@@ -573,7 +625,7 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
               Container(
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF4E249E), Color(0xFF6B38D0)],
+                    colors: [OrganizerColors.primaryDark, OrganizerColors.primary],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -647,16 +699,18 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
     );
   }
 
-  void _openCreate() {
-    Navigator.of(context).push(
+  Future<void> _openCreate() async {
+    final created = await Navigator.of(context).push<bool>(
       MaterialPageRoute(builder: (_) => const EvenementCreateStepperScreen()),
     );
+    if (created == true) await _load();
   }
 
-  void _openDetail(int id) {
-    Navigator.of(context).push(
+  Future<void> _openDetail(int id) async {
+    final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute(builder: (_) => EvenementDetailScreen(weddingId: id)),
     );
+    if (changed == true) await _load();
   }
 
   void _showSortOptions() {
@@ -726,9 +780,9 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
               title: const Text('Modifier'),
               onTap: () {
                 Navigator.of(ctx).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Modification bientôt disponible'),
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                      builder: (_) => WeddingDetailPage(weddingId: e.id),
                   ),
                 );
               },
@@ -762,37 +816,39 @@ class _StatItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Column(
       children: [
         Container(
-          width: 40,
-          height: 40,
+          width: 44,
+          height: 44,
           decoration: BoxDecoration(
             color: iconBg,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(icon, size: 22, color: iconColor),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
         Text(
           value,
-          style: AppTypography.stat(
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
+          style: AppTypography.stat(color: scheme.onSurface)
+              .copyWith(fontSize: 22),
         ),
         const SizedBox(height: 2),
         Text(
           label,
-          style: AppTypography.small(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: AppTypography.small(color: scheme.onSurfaceVariant)
+              .copyWith(fontSize: 11.5),
         ),
       ],
     );
   }
 }
 
-class _EventCard extends StatelessWidget {
+class _EventCard extends ConsumerWidget {
   const _EventCard({
     required this.event,
     required this.onTap,
@@ -804,98 +860,48 @@ class _EventCard extends StatelessWidget {
   final VoidCallback onMenu;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     final status = event.status.toUpperCase();
-    final statusLabel = _statusLabel(status);
     final statusColor = _statusColor(status);
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
           color: scheme.surface,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: scheme.outline.withValues(alpha: 0.3)),
+          borderRadius: BorderRadius.circular(AppRadius.eventCard),
+          border: Border.all(color: scheme.outline.withValues(alpha: 0.5)),
+          boxShadow: AppShadows.subtle(scheme.shadow),
         ),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                width: 110,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      scheme.primary.withValues(alpha: 0.15),
-                      scheme.primaryContainer.withValues(alpha: 0.3),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(AppRadius.lg),
-                    bottomLeft: Radius.circular(AppRadius.lg),
-                  ),
-                ),
-                child: const Center(
-                  child: Text('✨', style: TextStyle(fontSize: 38)),
-                ),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _EventCover(type: event.type),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Row(
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: scheme.primaryContainer,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              'ÉVÉNEMENT',
-                              style: AppTypography.small(
-                                color: scheme.onPrimaryContainer,
-                              ).copyWith(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 9.5,
-                                letterSpacing: 0.3,
-                              ),
-                            ),
+                          _StatusPill(
+                            label: _eventTypeLabel(event.type),
+                            color: _eventTypeColor(event.type),
                           ),
-                          const SizedBox(width: 4),
-                          const Spacer(),
+                          const SizedBox(width: 6),
                           Flexible(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 3,
-                              ),
-                              decoration: BoxDecoration(
-                                color: statusColor.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                statusLabel,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: AppTypography.small(color: statusColor)
-                                    .copyWith(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 9.5,
-                                    ),
-                              ),
+                            child: _StatusPill(
+                              label: _statusLabel(status),
+                              color: statusColor,
+                              showDot: true,
                             ),
                           ),
-                          const SizedBox(width: 2),
+                          const Spacer(),
                           IconButton(
                             onPressed: onMenu,
                             icon: Icon(
@@ -911,112 +917,400 @@ class _EventCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       Text(
                         event.displayName,
-                        style: AppTypography.cardTitle(
-                          color: scheme.onSurface,
-                        ).copyWith(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          height: 1.2,
-                        ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
+                        style: AppTypography.cardTitle(color: scheme.onSurface)
+                            .copyWith(
+                              fontSize: 15.5,
+                              fontWeight: FontWeight.w700,
+                              height: 1.25,
+                            ),
                       ),
                       const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.calendar_today_outlined,
-                            size: 13,
-                            color: scheme.onSurfaceVariant,
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              _formatDate(event),
-                              style: AppTypography.small(
-                                color: scheme.onSurfaceVariant,
-                              ).copyWith(fontSize: 11),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
+                      _MetaLine(
+                        icon: Icons.calendar_today_outlined,
+                        text: _formatDate(event),
                       ),
                       const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.location_on_outlined,
-                            size: 13,
-                            color: scheme.onSurfaceVariant,
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              'Organisation #${event.organizationId}',
-                              style: AppTypography.small(
-                                color: scheme.onSurfaceVariant,
-                              ).copyWith(fontSize: 11),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
+                      _MetaLine(
+                        icon: Icons.location_on_outlined,
+                        text: _placeLine(event),
                       ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.people_outline_rounded,
-                            size: 13,
-                            color: scheme.onSurfaceVariant,
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              '0 invités',
-                              style: AppTypography.small(
-                                color: scheme.onSurfaceVariant,
-                              ).copyWith(fontSize: 11),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
+                      // Le compteur d'invités est désormais dans le pied de carte
+                      // (`_ProgressFooter`) : plus de ligne « 0 invités » statique.
                     ],
                   ),
                 ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Divider(
+              height: 1,
+              thickness: 1,
+              color: scheme.outline.withValues(alpha: 0.5),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            _ProgressFooter(eventId: event.id),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Ligne date + heure : « Samedi 28 Juin 2025 • 15h00 ».
+String _formatDate(Wedding e) {
+  final date = _frenchDate(e.eventDate);
+  final time = _frenchTime(e.startTime);
+  final parts = <String>[?date, ?time];
+  if (parts.isEmpty) return 'Date à définir';
+  return parts.join(' • ');
+}
+
+/// Ligne du lieu : « Hôtel Pullman • Kinshasa », repli sur l'organisation.
+String _placeLine(Wedding e) {
+  final venue = e.venueName?.trim() ?? '';
+  final city = e.city?.trim() ?? '';
+  if (venue.isNotEmpty && city.isNotEmpty) return '$venue • $city';
+  if (venue.isNotEmpty) return 'Organisation #${e.organizationId} • $venue';
+  if (city.isNotEmpty) return 'Organisation #${e.organizationId} • $city';
+  return 'Organisation #${e.organizationId}';
+}
+
+/// « 2025-06-28 » → « Samedi 28 Juin 2025 » (sans dépendance `intl`).
+String? _frenchDate(String? raw) {
+  final value = raw?.trim() ?? '';
+  if (value.isEmpty) return null;
+  final parsed = DateTime.tryParse(value);
+  if (parsed == null) return value;
+  const days = <String>[
+    'Lundi',
+    'Mardi',
+    'Mercredi',
+    'Jeudi',
+    'Vendredi',
+    'Samedi',
+    'Dimanche',
+  ];
+  const months = <String>[
+    'Janvier',
+    'Février',
+    'Mars',
+    'Avril',
+    'Mai',
+    'Juin',
+    'Juillet',
+    'Août',
+    'Septembre',
+    'Octobre',
+    'Novembre',
+    'Décembre',
+  ];
+  final day = days[parsed.weekday - 1];
+  final month = months[parsed.month - 1];
+  return '$day ${parsed.day} $month ${parsed.year}';
+}
+
+/// « 15:00:00 » → « 15h00 ».
+String? _frenchTime(String? raw) {
+  final value = raw?.trim() ?? '';
+  if (value.isEmpty) return null;
+  final parts = value.split(':');
+  if (parts.length < 2) return value;
+  final hour = int.tryParse(parts[0]);
+  final minute = int.tryParse(parts[1]);
+  if (hour == null || minute == null) return value;
+  return '${hour.toString().padLeft(2, '0')}h'
+      '${minute.toString().padLeft(2, '0')}';
+}
+
+String _statusLabel(String status) => switch (status) {
+  'ACTIVE' || 'PUBLISHED' => 'En cours',
+  'DRAFT' => 'Brouillon',
+  _ => 'À venir',
+};
+
+Color _statusColor(String status) => switch (status) {
+  'ACTIVE' || 'PUBLISHED' => OrganizerColors.success,
+  'DRAFT' => OrganizerColors.primary,
+  _ => OrganizerColors.warning,
+};
+
+/// Libellé court du type d'événement (badge + pastille de vignette).
+String _eventTypeLabel(String type) => switch (type.toUpperCase()) {
+  'WEDDING' => 'MARIAGE',
+  'COLLATION' => 'COLLATION',
+  'ANNIVERSARY' => 'ANNIVERSAIRE',
+  'BAPTISM' => 'BAPTÊME',
+  'GRADUATION' => 'DIPLÔME',
+  _ => 'ÉVÉNEMENT',
+};
+
+Color _eventTypeColor(String type) => switch (type.toUpperCase()) {
+  'WEDDING' => OrganizerColors.primary,
+  'ANNIVERSARY' => OrganizerColors.accent,
+  'COLLATION' => OrganizerColors.info,
+  'BAPTISM' => OrganizerColors.info,
+  'GRADUATION' => OrganizerColors.info,
+  _ => OrganizerColors.info,
+};
+
+/// Dégradé de la vignette selon le type (lavande/rose, bleu ciel sinon).
+List<Color> _eventTypeGradient(String type) => switch (type.toUpperCase()) {
+  'WEDDING' => const [
+    OrganizerColors.lightSurfaceViolet,
+    OrganizerColors.accentBg,
+  ],
+  'ANNIVERSARY' => const [
+    OrganizerColors.accentBg,
+    OrganizerColors.lightSurfaceViolet,
+  ],
+  _ => const [OrganizerColors.infoBg, OrganizerColors.lightSurfaceViolet],
+};
+
+IconData _eventTypeIcon(String type) => switch (type.toUpperCase()) {
+  'BAPTISM' => Icons.child_care_rounded,
+  'GRADUATION' => Icons.school_rounded,
+  'ANNIVERSARY' => Icons.cake_rounded,
+  'COLLATION' => Icons.restaurant_rounded,
+  _ => Icons.apartment_rounded,
+};
+
+/// Pastille compacte (type d'événement, statut), avec point optionnel.
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({
+    required this.label,
+    required this.color,
+    this.showDot = false,
+  });
+
+  final String label;
+  final Color color;
+  final bool showDot;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.13),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (showDot) ...[
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 5),
+          ],
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.4,
+                color: color,
               ),
-            ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Ligne méta d'une carte (petite icône + texte sur une seule ligne).
+class _MetaLine extends StatelessWidget {
+  const _MetaLine({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Icon(icon, size: 13, color: scheme.onSurfaceVariant),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.small(color: scheme.onSurfaceVariant)
+                .copyWith(fontSize: 11),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Vignette carrée de l'événement (dégradé + pictogramme + libellé de type).
+class _EventCover extends StatelessWidget {
+  const _EventCover({required this.type});
+
+  final String type;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _eventTypeColor(type);
+    final isWedding = type.toUpperCase() == 'WEDDING';
+    return Container(
+      width: 84,
+      height: 84,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: _eventTypeGradient(type),
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Center(
+              child: isWedding
+                  ? const Text('🎉', style: TextStyle(fontSize: 32))
+                  : Icon(_eventTypeIcon(type), size: 30, color: color),
+            ),
+          ),
+          Positioned(
+            left: 6,
+            right: 6,
+            bottom: 6,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 3,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  _eventTypeLabel(type),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.3,
+                    color: color,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Pied de carte : « 142 / 200 confirmés » + barre de progression.
+///
+/// Les chiffres proviennent du dashboard déjà existant
+/// (`GET /api/events/{id}/dashboard`), mis en cache par identifiant
+/// d'événement. En cas d'échec réseau, la carte reste lisible (libellé neutre).
+class _ProgressFooter extends ConsumerWidget {
+  const _ProgressFooter({required this.eventId});
+
+  final int eventId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
+    final stats = ref.watch(eventDashboardProvider(eventId));
+    final data = stats.valueOrNull;
+    final confirmed = data?.invitations.accepted ?? 0;
+    final total = data?.guests.total ?? 0;
+    final ratio = total <= 0 ? 0.0 : (confirmed / total).clamp(0.0, 1.0);
+
+    return Row(
+      children: [
+        Flexible(
+          child: data == null
+              ? Text(
+                  stats.hasError
+                      ? 'Statistiques indisponibles'
+                      : 'Chargement…',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.small(color: scheme.onSurfaceVariant)
+                      .copyWith(fontSize: 11.5),
+                )
+              : RichText(
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  text: TextSpan(
+                    style:
+                        AppTypography.small(color: scheme.onSurfaceVariant)
+                            .copyWith(fontSize: 11.5),
+                    children: [
+                      TextSpan(
+                        text: '$confirmed',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: scheme.onSurface,
+                        ),
+                      ),
+                      TextSpan(text: ' / $total confirmés'),
+                    ],
+                  ),
+                ),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(flex: 2, child: _ProgressBar(fraction: ratio, scheme: scheme)),
+      ],
+    );
+  }
+}
+
+/// Barre de progression arrondie (piste neutre + remplissage violet).
+class _ProgressBar extends StatelessWidget {
+  const _ProgressBar({required this.fraction, required this.scheme});
+
+  final double fraction;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(4),
+      child: Container(
+        height: 6,
+        color: scheme.outline.withValues(alpha: 0.35),
+        child: FractionallySizedBox(
+          alignment: Alignment.centerLeft,
+          widthFactor: fraction,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  scheme.primary,
+                  scheme.primary.withValues(alpha: 0.55),
+                ],
+              ),
+            ),
           ),
         ),
       ),
     );
   }
-
-  String _formatDate(Wedding e) {
-    final parts = <String>[
-      if (e.groomFirstName.isNotEmpty) e.groomFirstName,
-      if (e.brideFirstName.isNotEmpty) e.brideFirstName,
-    ];
-    return parts.join(' & ');
-  }
-
-  String _statusLabel(String status) => switch (status) {
-    'ACTIVE' || 'PUBLISHED' => 'En cours',
-    'DRAFT' => 'Brouillon',
-    _ => 'À venir',
-  };
-
-  Color _statusColor(String status) => switch (status) {
-    'ACTIVE' || 'PUBLISHED' => const Color(0xFF22C55E),
-    'DRAFT' => OrganizerColors.primary,
-    _ => const Color(0xFFF59E0B),
-  };
 }
 
 class _Shimmer extends StatelessWidget {

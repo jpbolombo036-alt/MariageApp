@@ -1,5 +1,8 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../src/auth/auth_providers.dart';
 import '../../../../src/auth/auth_controller.dart';
@@ -11,11 +14,13 @@ import '../../../../src/guest/guest_list_page.dart';
 import '../../../../src/invitation/invitation_create_page.dart';
 import '../../../../src/invitation/invitation_list_page.dart';
 import '../../../../src/table/table_list_page.dart';
+import '../../../../src/checkin/checkin_scan_page.dart';
 import '../../../../src/theme/app_theme.dart';
 import '../../../../src/wedding/wedding_api.dart';
 import '../../../../src/wedding/wedding_providers.dart';
 import '../../../../src/weddingevent/wedding_event_list_page.dart';
 import '../../shared/widgets/app_states.dart';
+import 'event_tools_screen.dart';
 
 class EventDetailManagementScreen extends ConsumerStatefulWidget {
   const EventDetailManagementScreen({super.key, required this.weddingId});
@@ -32,11 +37,17 @@ class _EventDetailManagementScreenState extends ConsumerState<EventDetailManagem
   String? _error;
   Wedding? _wedding;
   Dashboard? _dashboard;
+  Uint8List? _coverBytes;
+  Uint8List? _groomBytes;
+  Uint8List? _brideBytes;
+  Uint8List? _coupleBytes;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _loadCover();
+    _loadDetailPhotos();
   }
 
   Future<void> _load() async {
@@ -64,6 +75,61 @@ class _EventDetailManagementScreenState extends ConsumerState<EventDetailManagem
         _loading = false;
         _error = 'Impossible de charger l\'événement';
       });
+    }
+  }
+
+  Future<void> _loadCover() async {
+    try {
+      final bytes = await ref.read(weddingApiProvider).loadImage(widget.weddingId);
+      if (!mounted) return;
+      setState(() => _coverBytes = bytes);
+    } catch (_) {}
+  }
+
+  Future<void> _loadDetailPhotos() async {
+    try {
+      final api = ref.read(weddingApiProvider);
+      final groom = await api.loadDetailPhoto(widget.weddingId, 'groom');
+      final bride = await api.loadDetailPhoto(widget.weddingId, 'bride');
+      final couple = await api.loadDetailPhoto(widget.weddingId, 'couple');
+      if (!mounted) return;
+      setState(() {
+        _groomBytes = groom;
+        _brideBytes = bride;
+        _coupleBytes = couple;
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _pickAndUploadCoverImage() async {
+    try {
+      final picker = ImagePicker();
+      final file = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1200,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+      if (file == null) return;
+      final bytes = await file.readAsBytes();
+      final ext = file.path.split('.').last.toLowerCase();
+      final mime = switch (ext) {
+        'png' => 'image/png',
+        'webp' => 'image/webp',
+        'gif' => 'image/gif',
+        _ => 'image/jpeg',
+      };
+      await ref.read(weddingApiProvider).uploadImage(widget.weddingId, bytes, mime);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Photo de couverture mise à jour')),
+      );
+      await _loadCover();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Upload impossible')),
+      );
     }
   }
 
@@ -111,7 +177,9 @@ class _EventDetailManagementScreenState extends ConsumerState<EventDetailManagem
               icon: Icon(Icons.more_vert, size: 22, color: scheme.onSurface),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               itemBuilder: (context) {
-                final items = <PopupMenuEntry<String>>[];
+                final items = <PopupMenuEntry<String>>[
+                  const PopupMenuItem(value: 'tools', child: Text('Outils')),
+                ];
                 if (auth.hasPermission(PermissionCodes.weddingPublish)) {
                   items.add(const PopupMenuItem(value: 'publish', child: Text('Publier')));
                 }
@@ -135,12 +203,12 @@ class _EventDetailManagementScreenState extends ConsumerState<EventDetailManagem
             children: [
               const SizedBox(height: AppSpacing.lg),
               _buildCoverCard(scheme, w, status),
-              const SizedBox(height: AppSpacing.lg),
-              _buildInfoCard(scheme, w),
-              const SizedBox(height: AppSpacing.xxl),
+              const SizedBox(height: AppSpacing.xl),
+              _buildCouplePhotosCard(scheme),
+              const SizedBox(height: AppSpacing.xl),
               _buildStatisticsCard(scheme, d),
               const SizedBox(height: AppSpacing.xxl),
-              _buildManagementSection(scheme, auth, w.id),
+              _buildManagementSection(scheme, auth, w.id, d),
               const SizedBox(height: AppSpacing.xxl),
               _buildQuickActions(scheme, auth, w.id),
               const SizedBox(height: 100),
@@ -153,58 +221,156 @@ class _EventDetailManagementScreenState extends ConsumerState<EventDetailManagem
 
   Widget _buildCoverCard(ColorScheme scheme, Wedding w, String status) {
     final statusLabel = _statusLabel(status);
+    final city = (w.city ?? '').trim();
+    final typeLabel = _eventTypeLabelOf(w.type);
+    final subtitle = [
+      'Célébration de $typeLabel',
+      if (city.isNotEmpty) city,
+    ].join(' • ');
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
       child: Container(
-        height: 180,
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          gradient: LinearGradient(
-            colors: [scheme.primary, scheme.primary.withValues(alpha: 0.7)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+          boxShadow: [
+            BoxShadow(
+              color: scheme.primary.withValues(alpha: 0.28),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
         ),
         child: Stack(
           children: [
-            Positioned(
-              right: 15,
-              bottom: 5,
-              child: Opacity(
-                opacity: 0.25,
-                child: Text('✨', style: const TextStyle(fontSize: 90)),
-              ),
-            ),
-            Positioned(
-              left: 18,
-              right: 18,
-              bottom: 16,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      statusLabel,
-                      style: AppTypography.small(color: Colors.white)
-                          .copyWith(fontWeight: FontWeight.w600, fontSize: 11),
+            if (_coverBytes != null)
+              Positioned.fill(
+                child: Image.memory(
+                  _coverBytes!,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                ),
+              )
+            else
+              Positioned.fill(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [OrganizerColors.primaryDark, OrganizerColors.primary],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                ),
+              ),
+            Positioned(
+              right: -6,
+              top: 24,
+              child: Icon(
+                Icons.star_rounded,
+                size: 92,
+                color: Colors.white.withValues(alpha: 0.10),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: const BoxDecoration(
+                                color: OrganizerColors.successOnDark,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              statusLabel,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        'CÉLÉBRATION',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.85),
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.6,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Icon(
+                        Icons.auto_awesome,
+                        size: 14,
+                        color: Colors.white.withValues(alpha: 0.85),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
                   Text(
                     w.displayName,
-                    style: AppTypography.display(color: Colors.white).copyWith(fontSize: 20),
+                    style: AppTypography.display(color: Colors.white).copyWith(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      height: 1.15,
+                    ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  const SizedBox(height: 6),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      fontSize: 12.5,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  Divider(
+                    height: 1,
+                    color: Colors.white.withValues(alpha: 0.25),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  _heroMetaRow(Icons.event_rounded, _heroDateLine(w)),
+                  const SizedBox(height: 6),
+                  _heroMetaRow(Icons.place_rounded, _heroVenueLine(w)),
                 ],
+              ),
+            ),
+            Positioned(
+              top: 12,
+              right: 12,
+              child: IconButton.filled(
+                onPressed: _pickAndUploadCoverImage,
+                icon: const Icon(Icons.camera_alt_outlined, size: 18),
+                tooltip: 'Changer la photo de couverture',
               ),
             ),
           ],
@@ -213,64 +379,105 @@ class _EventDetailManagementScreenState extends ConsumerState<EventDetailManagem
     );
   }
 
-  Widget _buildInfoCard(ColorScheme scheme, Wedding w) {
-    final names = '${w.groomFirstName} ${w.brideFirstName}'.trim();
+  Widget _buildCouplePhotosCard(ColorScheme scheme) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        decoration: BoxDecoration(
-          color: scheme.surface,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: scheme.outline.withValues(alpha: 0.3)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              w.displayName,
-              style: AppTypography.cardTitle(color: scheme.onSurface)
-                  .copyWith(fontSize: 17, fontWeight: FontWeight.w700),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            if (names.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Icon(Icons.calendar_today_outlined, size: 16, color: scheme.onSurfaceVariant),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      names,
-                      style: AppTypography.body(color: scheme.onSurfaceVariant)
-                          .copyWith(fontSize: 13),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Photos du couple',
+            style: AppTypography.sectionTitle(color: scheme.onSurface),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Row(
+            children: [
+              Expanded(child: _PhotoThumbnail(label: 'Marié', bytes: _groomBytes, scheme: scheme)),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(child: _PhotoThumbnail(label: 'Mariée', bytes: _brideBytes, scheme: scheme)),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(child: _PhotoThumbnail(label: 'Couple', bytes: _coupleBytes, scheme: scheme)),
             ],
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(Icons.location_on_outlined, size: 16, color: scheme.onSurfaceVariant),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Organisation #${w.organizationId}',
-                    style: AppTypography.body(color: scheme.onSurfaceVariant)
-                        .copyWith(fontSize: 13),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Ligne d'information blanche du hero (icône + texte).
+  Widget _heroMetaRow(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: Colors.white70),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Colors.white, fontSize: 12.5),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Bas de la carte statistiques : « Taux de pointage actuel » + barre.
+  Widget _buildAttendanceProgress(ColorScheme scheme, Dashboard? d) {
+    final rate = _normalizedRate(d?.attendance.checkInRate ?? 0);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                color: scheme.primary,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                'Taux de pointage actuel',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.small(
+                  color: scheme.onSurfaceVariant,
+                ).copyWith(fontSize: 12),
+              ),
+            ),
+            Text(
+              '${rate.toStringAsFixed(1)}%',
+              style: AppTypography.small(color: scheme.onSurface).copyWith(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ],
         ),
-      ),
+        const SizedBox(height: AppSpacing.sm),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: Container(
+            height: 8,
+            color: scheme.outline.withValues(alpha: 0.35),
+            child: FractionallySizedBox(
+              alignment: Alignment.centerLeft,
+              widthFactor: (rate / 100).clamp(0.0, 1.0),
+              child: const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [OrganizerColors.primary, OrganizerColors.accent],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -283,35 +490,79 @@ class _EventDetailManagementScreenState extends ConsumerState<EventDetailManagem
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: AppSpacing.md),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         decoration: BoxDecoration(
           color: scheme.surface,
           borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: scheme.outline.withValues(alpha: 0.3)),
+          border: Border.all(color: scheme.outline.withValues(alpha: 0.5)),
+          boxShadow: AppShadows.subtle(scheme.shadow),
         ),
-        child: Row(
+        child: Column(
           children: [
-            Expanded(child: _DetailStatItem(icon: Icons.group_outlined, iconBg: scheme.primaryContainer, iconColor: scheme.primary, value: '$guests', label: 'Invités')),
-            Container(width: 1, height: 36, color: scheme.outline.withValues(alpha: 0.3)),
-            Expanded(child: _DetailStatItem(icon: Icons.verified_outlined, iconBg: const Color(0xFFE8F5E9), iconColor: const Color(0xFF22C55E), value: '$confirmed', label: 'Confirmés')),
-            Container(width: 1, height: 36, color: scheme.outline.withValues(alpha: 0.3)),
-            Expanded(child: _DetailStatItem(icon: Icons.qr_code_scanner_outlined, iconBg: const Color(0xFFFFFBEB), iconColor: const Color(0xFFF59E0B), value: '$checkedIn', label: 'Présents')),
-            Container(width: 1, height: 36, color: scheme.outline.withValues(alpha: 0.3)),
-            Expanded(child: _DetailStatItem(icon: Icons.schedule_outlined, iconBg: const Color(0xFFFFFBEB), iconColor: const Color(0xFFF59E0B), value: '$pending', label: 'En attente')),
+            Row(
+              children: [
+                Expanded(
+                  child: _DetailStatItem(
+                    icon: Icons.group_outlined,
+                    iconBg: scheme.primary.withValues(alpha: 0.12),
+                    iconColor: scheme.primary,
+                    value: '$guests',
+                    label: 'Invités',
+                  ),
+                ),
+                Expanded(
+                  child: _DetailStatItem(
+                    icon: Icons.verified_outlined,
+                    iconBg: OrganizerColors.successBg,
+                    iconColor: OrganizerColors.success,
+                    value: '$confirmed',
+                    label: 'Confirmés',
+                  ),
+                ),
+                Expanded(
+                  child: _DetailStatItem(
+                    icon: Icons.groups_2_outlined,
+                    iconBg: OrganizerColors.warningBg,
+                    iconColor: OrganizerColors.warning,
+                    value: '$checkedIn',
+                    label: 'Présents',
+                  ),
+                ),
+                Expanded(
+                  child: _DetailStatItem(
+                    icon: Icons.schedule_rounded,
+                    iconBg: OrganizerColors.warningBg,
+                    iconColor: OrganizerColors.warning,
+                    value: '$pending',
+                    label: 'En attente',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Divider(height: 1, color: scheme.outline.withValues(alpha: 0.4)),
+            const SizedBox(height: AppSpacing.lg),
+            _buildAttendanceProgress(scheme, d),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildManagementSection(ColorScheme scheme, AuthState auth, int weddingId) {
+  Widget _buildManagementSection(
+    ColorScheme scheme,
+    AuthState auth,
+    int weddingId,
+    Dashboard? d,
+  ) {
     final modules = <_ModuleCardData>[
       _ModuleCardData(
         icon: Icons.group_outlined,
         title: 'Invités',
         description: 'Gérer votre liste d\'invités',
         color: scheme.primary,
-        background: scheme.primaryContainer,
+        background: scheme.primary.withValues(alpha: 0.12),
+        trailing: _ModuleTrailing.count('${d?.guests.total ?? 0}'),
         onTap: auth.hasPermission(PermissionCodes.guestView)
             ? () => _openGuestList(weddingId)
             : null,
@@ -321,7 +572,8 @@ class _EventDetailManagementScreenState extends ConsumerState<EventDetailManagem
         title: 'Invitations',
         description: 'Créer et suivre les invitations',
         color: scheme.primary,
-        background: scheme.primaryContainer,
+        background: scheme.primary.withValues(alpha: 0.12),
+        trailing: const _ModuleTrailing.dot(),
         onTap: auth.hasPermission(PermissionCodes.invitationView)
             ? () => _openInvitations(weddingId)
             : null,
@@ -330,8 +582,13 @@ class _EventDetailManagementScreenState extends ConsumerState<EventDetailManagem
         icon: Icons.fact_check_outlined,
         title: 'RSVP',
         description: 'Voir les réponses des invités',
-        color: const Color(0xFF22C55E),
-        background: const Color(0xFFE8F5E9),
+        color: OrganizerColors.success,
+        background: OrganizerColors.successBg,
+        trailing: const _ModuleTrailing.badge(
+          'Actif',
+          color: OrganizerColors.success,
+          background: OrganizerColors.successBg,
+        ),
         onTap: auth.hasPermission(PermissionCodes.invitationView)
             ? () => _openInvitations(weddingId)
             : null,
@@ -340,8 +597,13 @@ class _EventDetailManagementScreenState extends ConsumerState<EventDetailManagem
         icon: Icons.qr_code_scanner_outlined,
         title: 'Check-in',
         description: 'Enregistrer les arrivées',
-        color: const Color(0xFFF59E0B),
-        background: const Color(0xFFFFFBEB),
+        color: OrganizerColors.warning,
+        background: OrganizerColors.warningBg,
+        trailing: const _ModuleTrailing.badge(
+          'Scan direct',
+          color: OrganizerColors.warning,
+          background: OrganizerColors.warningBg,
+        ),
         onTap: auth.hasPermission(PermissionCodes.checkinCreate)
             ? () => _openCheckin(weddingId)
             : null,
@@ -350,8 +612,8 @@ class _EventDetailManagementScreenState extends ConsumerState<EventDetailManagem
         icon: Icons.table_restaurant_outlined,
         title: 'Tables',
         description: 'Organiser le placement',
-        color: scheme.primary,
-        background: scheme.primaryContainer,
+        color: OrganizerColors.info,
+        background: OrganizerColors.infoBg,
         onTap: auth.hasPermission(PermissionCodes.tableCreate)
             ? () => _openTables(weddingId)
             : null,
@@ -361,7 +623,7 @@ class _EventDetailManagementScreenState extends ConsumerState<EventDetailManagem
         title: 'Activités',
         description: 'Gérer le programme',
         color: scheme.primary,
-        background: scheme.primaryContainer,
+        background: scheme.primary.withValues(alpha: 0.12),
         onTap: auth.hasPermission(PermissionCodes.eventView)
             ? () => _openActivities(weddingId)
             : null,
@@ -370,8 +632,8 @@ class _EventDetailManagementScreenState extends ConsumerState<EventDetailManagem
         icon: Icons.bar_chart_outlined,
         title: 'Statistiques',
         description: 'Consulter les performances',
-        color: const Color(0xFF22C55E),
-        background: const Color(0xFFE8F5E9),
+        color: OrganizerColors.success,
+        background: OrganizerColors.successBg,
         onTap: auth.hasPermission(PermissionCodes.dashboardView)
             ? () {}
             : null,
@@ -393,10 +655,25 @@ class _EventDetailManagementScreenState extends ConsumerState<EventDetailManagem
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Gérer cet événement',
-            style: AppTypography.sectionTitle(color: scheme.onSurface),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Gérer cet événement',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.sectionTitle(color: scheme.onSurface)
+                      .copyWith(fontSize: 17, fontWeight: FontWeight.w700),
+                ),
+              ),
+              Text(
+                '${modules.length} modules',
+                style: AppTypography.small(color: scheme.primary)
+                    .copyWith(fontSize: 12.5, fontWeight: FontWeight.w700),
+              ),
+            ],
           ),
+          const SizedBox(height: AppSpacing.lg),
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -405,7 +682,7 @@ class _EventDetailManagementScreenState extends ConsumerState<EventDetailManagem
               crossAxisCount: 2,
               mainAxisSpacing: AppSpacing.md,
               crossAxisSpacing: AppSpacing.md,
-              mainAxisExtent: 130,
+              mainAxisExtent: 150,
             ),
             itemBuilder: (context, index) => _ModuleCard(module: modules[index]),
           ),
@@ -468,8 +745,10 @@ class _EventDetailManagementScreenState extends ConsumerState<EventDetailManagem
   }
 
   void _openCheckin(int weddingId) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Check-in : module à venir')),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CheckInScanPage(weddingId: weddingId),
+      ),
     );
   }
 
@@ -485,16 +764,20 @@ class _EventDetailManagementScreenState extends ConsumerState<EventDetailManagem
     );
   }
 
-  void _openAddGuest(int weddingId) {
-    Navigator.of(context).push(
+  Future<void> _openAddGuest(int weddingId) async {
+    final created = await Navigator.of(context).push<bool>(
       MaterialPageRoute(builder: (_) => GuestCreatePage(weddingId: weddingId)),
     );
+    if (created == true && mounted) await _load();
   }
 
-  void _openCreateInvitation(int weddingId) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => InvitationCreatePage(weddingId: weddingId)),
+  Future<void> _openCreateInvitation(int weddingId) async {
+    final created = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => InvitationCreatePage(weddingId: weddingId),
+      ),
     );
+    if (created == true && mounted) await _load();
   }
 
   /// Exécute une action du menu ⋮ (Publier / Archiver / Supprimer).
@@ -505,6 +788,13 @@ class _EventDetailManagementScreenState extends ConsumerState<EventDetailManagem
     if (w == null || value == null || value == 'none') return;
     final api = ref.read(weddingApiProvider);
     switch (value) {
+      case 'tools':
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => EventToolsScreen(weddingId: w.id),
+          ),
+        );
+        break;
       case 'publish':
         try {
           await api.updateStatus(w.id, 'PUBLISHED');
@@ -535,7 +825,7 @@ class _EventDetailManagementScreenState extends ConsumerState<EventDetailManagem
               TextButton(
                   onPressed: () => Navigator.of(ctx).pop(true),
                   style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFFDC2626)),
+                      foregroundColor: OrganizerColors.danger),
                   child: const Text('Supprimer')),
             ],
           ),
@@ -570,6 +860,7 @@ class _ModuleCardData {
     required this.description,
     required this.color,
     required this.background,
+    this.trailing,
     this.onTap,
   });
 
@@ -578,7 +869,122 @@ class _ModuleCardData {
   final String description;
   final Color color;
   final Color background;
+
+  /// Indicateur en haut à droite (compteur, pastille ou badge).
+  final _ModuleTrailing? trailing;
   final VoidCallback? onTap;
+}
+
+/// Indicateur affiché en haut à droite d'une carte module.
+class _ModuleTrailing {
+  /// Compteur simple en violet (ex. « 54 »).
+  const _ModuleTrailing.count(this.text)
+      : dot = false,
+        background = null,
+        color = OrganizerColors.primary;
+
+  /// Pastille verte (module actif).
+  const _ModuleTrailing.dot()
+      : text = '',
+        dot = true,
+        background = null,
+        color = OrganizerColors.success;
+
+  /// Badge coloré (« Actif », « Scan direct »).
+  const _ModuleTrailing.badge(
+    this.text, {
+    required this.color,
+    required this.background,
+  }) : dot = false;
+
+  final String text;
+  final bool dot;
+  final Color color;
+  final Color? background;
+}
+
+/// Libellé du type d'événement (`Mariage`, `Anniversaire`, ...).
+String _eventTypeLabelOf(String type) => switch (type.toUpperCase()) {
+  'WEDDING' => 'Mariage',
+  'COLLATION' => 'Collation',
+  'ANNIVERSARY' => 'Anniversaire',
+  'BAPTISM' => 'Baptême',
+  'GRADUATION' => 'Remise de diplôme',
+  _ => 'Événement',
+};
+
+/// « Samedi 28 Juin 2025 • 15h00 » (sans dépendance `intl`).
+String _heroDateLine(Wedding w) {
+  final date = _frenchDate(w.eventDate);
+  final time = _frenchTime(w.startTime);
+  final parts = <String>[?date, ?time];
+  if (parts.isEmpty) return 'Date à définir';
+  return parts.join(' • ');
+}
+
+/// « Organisation #1 • Salle Majestic Pullman ».
+String _heroVenueLine(Wedding w) {
+  final venue = (w.venueName ?? '').trim();
+  final city = (w.city ?? '').trim();
+  final buffer = StringBuffer('Organisation #${w.organizationId}');
+  if (venue.isNotEmpty) {
+    buffer.write(' • $venue');
+  } else if (city.isNotEmpty) {
+    buffer.write(' • $city');
+  }
+  return buffer.toString();
+}
+
+/// « 2025-06-28 » → « Samedi 28 Juin 2025 ».
+String? _frenchDate(String? raw) {
+  final value = raw?.trim() ?? '';
+  if (value.isEmpty) return null;
+  final parsed = DateTime.tryParse(value);
+  if (parsed == null) return value;
+  const days = <String>[
+    'Lundi',
+    'Mardi',
+    'Mercredi',
+    'Jeudi',
+    'Vendredi',
+    'Samedi',
+    'Dimanche',
+  ];
+  const months = <String>[
+    'Janvier',
+    'Février',
+    'Mars',
+    'Avril',
+    'Mai',
+    'Juin',
+    'Juillet',
+    'Août',
+    'Septembre',
+    'Octobre',
+    'Novembre',
+    'Décembre',
+  ];
+  return '${days[parsed.weekday - 1]} ${parsed.day} '
+      '${months[parsed.month - 1]} ${parsed.year}';
+}
+
+/// « 15:00:00 » → « 15h00 ».
+String? _frenchTime(String? raw) {
+  final value = raw?.trim() ?? '';
+  if (value.isEmpty) return null;
+  final parts = value.split(':');
+  if (parts.length < 2) return value;
+  final hour = int.tryParse(parts[0]);
+  final minute = int.tryParse(parts[1]);
+  if (hour == null || minute == null) return value;
+  return '${hour.toString().padLeft(2, '0')}h'
+      '${minute.toString().padLeft(2, '0')}';
+}
+
+/// Ramène un taux d'API (0-1 ou 0-100) en pourcentage.
+double _normalizedRate(double value) {
+  if (value <= 0) return 0;
+  return value <= 1 ? value * 100 : value;
 }
 
 class _ModuleCard extends StatelessWidget {
@@ -589,50 +995,93 @@ class _ModuleCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final trailing = module.trailing;
     return GestureDetector(
       onTap: module.onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
           color: scheme.surface,
           borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: scheme.outline.withValues(alpha: 0.3)),
+          border: Border.all(color: scheme.outline.withValues(alpha: 0.5)),
+          boxShadow: AppShadows.subtle(scheme.shadow),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: module.background,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(module.icon, size: 20, color: module.color),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+            Row(
               children: [
-                Text(
-                  module.title,
-                  style: AppTypography.cardTitle(color: scheme.onSurface)
-                      .copyWith(fontSize: 14, fontWeight: FontWeight.w600),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: module.background,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(module.icon, size: 20, color: module.color),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  module.description,
-                  style: AppTypography.small(color: scheme.onSurfaceVariant)
-                      .copyWith(fontSize: 11, height: 1.2),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                const Spacer(),
+                if (trailing != null) _buildTrailing(trailing),
               ],
             ),
+            const Spacer(),
+            Text(
+              module.title,
+              style: AppTypography.cardTitle(color: scheme.onSurface).copyWith(
+                fontSize: 14.5,
+                fontWeight: FontWeight.w700,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              module.description,
+              style: AppTypography.small(color: scheme.onSurfaceVariant)
+                  .copyWith(fontSize: 11, height: 1.25),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Compteur violet, pastille verte ou badge coloré.
+  Widget _buildTrailing(_ModuleTrailing trailing) {
+    if (trailing.dot) {
+      return Container(
+        width: 9,
+        height: 9,
+        decoration: BoxDecoration(
+          color: trailing.color,
+          shape: BoxShape.circle,
+        ),
+      );
+    }
+    if (trailing.background == null) {
+      return Text(
+        trailing.text,
+        style: TextStyle(
+          color: trailing.color,
+          fontSize: 14,
+          fontWeight: FontWeight.w800,
+        ),
+      );
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: trailing.background,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        trailing.text,
+        style: TextStyle(
+          color: trailing.color,
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
         ),
       ),
     );
@@ -704,36 +1153,82 @@ class _DetailStatItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Column(
-      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 34,
-          height: 34,
+          width: 38,
+          height: 38,
           decoration: BoxDecoration(
             color: iconBg,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
-          child: Icon(icon, size: 18, color: iconColor),
+          child: Icon(icon, size: 19, color: iconColor),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         Text(
           value,
-          style: AppTypography.stat(color: Theme.of(context).colorScheme.onSurface)
-              .copyWith(fontSize: 15),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
+          style: AppTypography.cardTitle(color: scheme.onSurface),
         ),
         const SizedBox(height: 2),
         Text(
           label,
-          style: AppTypography.small(color: Theme.of(context).colorScheme.onSurfaceVariant)
-              .copyWith(fontSize: 10),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.center,
+          style: AppTypography.small(color: scheme.onSurfaceVariant),
         ),
       ],
+    );
+  }
+}
+
+class _PhotoThumbnail extends StatelessWidget {
+  const _PhotoThumbnail({required this.label, required this.bytes, required this.scheme});
+
+  final String label;
+  final Uint8List? bytes;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final placeholder = Container(
+      height: 120,
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: scheme.outline.withValues(alpha: 0.35)),
+      ),
+      child: Center(
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: AppTypography.small(color: scheme.onSurfaceVariant),
+        ),
+      ),
+    );
+    if (bytes == null) return placeholder;
+    return Container(
+      height: 120,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: scheme.outline.withValues(alpha: 0.35)),
+        boxShadow: [
+          BoxShadow(
+            color: scheme.shadow.withValues(alpha: 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Image.memory(
+        bytes!,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        errorBuilder: (context, error, stackTrace) => placeholder,
+      ),
     );
   }
 }

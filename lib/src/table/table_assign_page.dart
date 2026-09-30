@@ -22,6 +22,8 @@ class _TableAssignPageState extends ConsumerState<TableAssignPage> {
   bool _loading = true;
   String? _error;
   List<Guest> _guests = const [];
+  List<WeddingTable> _tables = const [];
+  List<TableAssignment> _assignments = const [];
   bool _submitting = false;
   String? _result;
 
@@ -37,12 +39,24 @@ class _TableAssignPageState extends ConsumerState<TableAssignPage> {
       _error = null;
     });
     try {
-      final api = ref.read(guestApiProvider);
-      final items = await api.listGuests(widget.weddingId);
+      final guests = await ref.read(guestApiProvider).listGuests(widget.weddingId);
+      final tables = await ref.read(tableApiProvider).list(widget.weddingId);
+      List<TableAssignment> assignments = const [];
+      try {
+        assignments = await ref.read(tableApiProvider).listAssignments(
+              weddingId: widget.weddingId,
+              tableId: widget.table.id,
+            );
+      } catch (_) {
+        assignments = const [];
+      }
       if (!mounted) return;
       setState(() {
-        _guests = items;
+        _guests = guests;
+        _tables = tables;
+        _assignments = assignments;
         _loading = false;
+        _submitting = false;
       });
     } catch (_) {
       if (!mounted) return;
@@ -71,6 +85,7 @@ class _TableAssignPageState extends ConsumerState<TableAssignPage> {
         _result = '${guest.displayName} → ${assignment.tableName}';
         _submitting = false;
       });
+      await _loadGuests();
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -87,6 +102,61 @@ class _TableAssignPageState extends ConsumerState<TableAssignPage> {
       appBar: AppBar(title: Text('Affecter — ${t.name}')),
       body: _buildBody(t),
     );
+  }
+
+  Future<void> _move(TableAssignment assignment) async {
+    final targets = _tables.where((table) => table.id != widget.table.id).toList();
+    if (targets.isEmpty) return;
+    final targetId = await showDialog<int>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Déplacer vers'),
+        children: [
+          for (final table in targets)
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(ctx).pop(table.id),
+              child: Text(table.name),
+            ),
+        ],
+      ),
+    );
+    if (targetId == null) return;
+    setState(() => _submitting = true);
+    try {
+      await ref.read(tableApiProvider).move(
+            weddingId: widget.weddingId,
+            assignmentId: assignment.assignmentId,
+            targetTableId: targetId,
+          );
+      if (!mounted) return;
+      setState(() => _result = '${assignment.guestName} déplacé');
+      await _loadGuests();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _result = 'Déplacement impossible';
+        _submitting = false;
+      });
+    }
+  }
+
+  Future<void> _remove(TableAssignment assignment) async {
+    setState(() => _submitting = true);
+    try {
+      await ref.read(tableApiProvider).remove(
+            weddingId: widget.weddingId,
+            assignmentId: assignment.assignmentId,
+          );
+      if (!mounted) return;
+      setState(() => _result = '${assignment.guestName} retiré de la table');
+      await _loadGuests();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _result = 'Retrait impossible';
+        _submitting = false;
+      });
+    }
   }
 
   Widget _buildBody(WeddingTable t) {
@@ -112,6 +182,37 @@ class _TableAssignPageState extends ConsumerState<TableAssignPage> {
             child: Text(_result!),
           ),
         ],
+        if (_assignments.isNotEmpty)
+          SizedBox(
+            height: 160,
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              itemCount: _assignments.length,
+              separatorBuilder: (_, index) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final assignment = _assignments[index];
+                return ListTile(
+                  title: Text(assignment.guestName),
+                  subtitle: Text(assignment.tableName),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: 'Déplacer',
+                        onPressed: _submitting ? null : () => _move(assignment),
+                        icon: const Icon(Icons.swap_horiz),
+                      ),
+                      IconButton(
+                        tooltip: 'Retirer',
+                        onPressed: _submitting ? null : () => _remove(assignment),
+                        icon: const Icon(Icons.person_remove_outlined),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
         Expanded(
           child: ListView.separated(
             padding: const EdgeInsets.all(12),

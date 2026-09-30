@@ -120,11 +120,33 @@ class _WeddingEventListPageState extends ConsumerState<WeddingEventListPage> {
             leading: const CircleAvatar(),
             title: Text(e.name),
             subtitle: Text(_subtitle(e)),
-            trailing: const Icon(Icons.chevron_right),
+            trailing: const Icon(Icons.edit_outlined),
+            onTap: () => _rename(e),
           ),
         );
       },
     );
+  }
+
+  Future<void> _rename(WeddingEvent event) async {
+    final name = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => _CreateEventDialog(initial: event.name),
+    );
+    if (name == null || name.trim().isEmpty || name.trim() == event.name) return;
+    try {
+      await ref.read(weddingEventApiProvider).update(
+        widget.weddingId,
+        event.id,
+        {'name': name.trim()},
+      );
+      await _load();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Modification impossible')),
+      );
+    }
   }
 
   String _subtitle(WeddingEvent e) {
@@ -146,14 +168,17 @@ class _WeddingEventListPageState extends ConsumerState<WeddingEventListPage> {
 
 /// Boîte de dialogue simple de création d'un événement (nom).
 class _CreateEventDialog extends StatefulWidget {
-  const _CreateEventDialog();
+  const _CreateEventDialog({this.initial = ''});
+
+  final String initial;
 
   @override
   State<_CreateEventDialog> createState() => _CreateEventDialogState();
 }
 
 class _CreateEventDialogState extends State<_CreateEventDialog> {
-  final _nameController = TextEditingController();
+  late final TextEditingController _nameController =
+      TextEditingController(text: widget.initial);
 
   @override
   void dispose() {
@@ -164,7 +189,7 @@ class _CreateEventDialogState extends State<_CreateEventDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Nouvel événement'),
+      title: Text(widget.initial.isEmpty ? 'Nouvelle séance' : 'Renommer la séance'),
       content: TextField(
         controller: _nameController,
         autofocus: true,
@@ -177,7 +202,7 @@ class _CreateEventDialogState extends State<_CreateEventDialog> {
         ),
         FilledButton(
           onPressed: () => Navigator.of(context).pop(_nameController.text.trim()),
-          child: const Text('Créer'),
+          child: Text(widget.initial.isEmpty ? 'Créer' : 'Enregistrer'),
         ),
       ],
     );

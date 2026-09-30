@@ -54,7 +54,7 @@ class _GuestCreatePageState extends ConsumerState<GuestCreatePage> {
     try {
       final api = ref.read(guestApiProvider);
       await api.createGuest(widget.weddingId, request);
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) Navigator.of(context).pop(true);
     } catch (_) {
       if (mounted) setState(() => _submitting = false);
     }
@@ -78,28 +78,36 @@ class _GuestCreatePageState extends ConsumerState<GuestCreatePage> {
                 decoration: const InputDecoration(labelText: 'Prénom'),
                 validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
               ),
+              const SizedBox(height: 14),
               TextFormField(
                 controller: _lastNameController,
                 decoration: const InputDecoration(labelText: 'Nom'),
                 validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
               ),
+              const SizedBox(height: 14),
               TextFormField(
                 controller: _phoneController,
                 decoration: const InputDecoration(labelText: 'Téléphone'),
+                keyboardType: TextInputType.phone,
               ),
+              const SizedBox(height: 14),
               TextFormField(
                 controller: _emailController,
-                decoration: const InputDecoration(labelText: 'Email'),
+                decoration: const InputDecoration(labelText: 'E-mail'),
                 keyboardType: TextInputType.emailAddress,
               ),
+              const SizedBox(height: 14),
               TextFormField(
                 controller: _companionsController,
                 decoration: const InputDecoration(labelText: 'Accompagnants autorisés'),
                 keyboardType: TextInputType.number,
               ),
+              const SizedBox(height: 14),
               TextFormField(
                 controller: _notesController,
                 decoration: const InputDecoration(labelText: 'Notes'),
+                minLines: 2,
+                maxLines: 4,
               ),
               const SizedBox(height: 20),
               FilledButton(

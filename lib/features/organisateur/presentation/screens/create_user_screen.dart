@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,6 +6,8 @@ import '../../../../src/admin/admin_api.dart';
 import '../../../../src/admin/admin_providers.dart';
 import '../../../../src/auth/auth_providers.dart';
 import '../../../../src/theme/app_theme.dart';
+import '../../../../src/wedding/wedding_api.dart';
+import '../../../../src/wedding/wedding_providers.dart';
 
 /// Rôles qu'un ORGANISATEUR peut attribuer à un membre de son équipe.
 const kOrganizerRoles = [
@@ -28,7 +31,89 @@ class _CreateUserScreenState extends ConsumerState<CreateUserScreen> {
   final _phone = TextEditingController();
   final _password = TextEditingController();
   String? _roleCode;
+  int? _weddingId;
+  List<Wedding> _events = const [];
+  List<OrgMember> _members = const [];
   bool _submitting = false;
+
+  bool get _needsWedding => _roleCode == 'AGENT_ACCUEIL';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEvents();
+    _loadMembers();
+  }
+
+  Future<void> _loadEvents() async {
+    try {
+      final events = await ref.read(weddingApiProvider).list();
+      if (!mounted) return;
+      setState(() => _events = events);
+    } catch (_) {
+      // Le mariage n'est demandé que pour l'agent d'accueil.
+    }
+  }
+
+  Future<void> _loadMembers() async {
+    final orgId = ref.read(authControllerProvider).user?.organizationId;
+    if (orgId == null) return;
+    try {
+      final members = await ref.read(adminApiProvider).listMembers(orgId);
+      if (!mounted) return;
+      setState(() => _members = members);
+    } catch (_) {}
+  }
+
+  Future<void> _removeMember(OrgMember member) async {
+    final orgId = ref.read(authControllerProvider).user?.organizationId;
+    if (orgId == null) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Retirer ce membre ?'),
+        content: Text('${member.firstName} ${member.lastName}'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Retour')),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Retirer')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ref.read(adminApiProvider).removeMember(orgId, member.id);
+      await _loadMembers();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_messageOf(error))));
+    }
+  }
+
+  Future<void> _reassign(OrgMember member) async {
+    final orgId = ref.read(authControllerProvider).user?.organizationId;
+    if (orgId == null || _events.isEmpty) return;
+    final weddingId = await showDialog<int>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Événement de l’agent'),
+        children: [
+          for (final event in _events)
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(ctx).pop(event.id),
+              child: Text(event.displayName),
+            ),
+        ],
+      ),
+    );
+    if (weddingId == null) return;
+    try {
+      await ref.read(adminApiProvider).updateMemberWedding(orgId, member.id, weddingId);
+      await _loadMembers();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_messageOf(error))));
+    }
+  }
 
   @override
   void dispose() {
@@ -47,6 +132,11 @@ class _CreateUserScreenState extends ConsumerState<CreateUserScreen> {
           content: Text('Sélectionnez un rôle pour ce membre')));
       return;
     }
+    if (_needsWedding && _weddingId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Choisissez l’événement de cet agent')));
+      return;
+    }
     final orgId = ref.read(authControllerProvider).user?.organizationId;
     if (orgId == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -63,18 +153,22 @@ class _CreateUserScreenState extends ConsumerState<CreateUserScreen> {
             phone: _phone.text.trim().isEmpty ? null : _phone.text.trim(),
             password: _password.text,
             roleCode: _roleCode!,
+            weddingId: _needsWedding ? _weddingId : null,
           ));
       if (!mounted) return;
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Membre ajouté à l\u2019équipe')));
       Navigator.of(context).pop(true);
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       setState(() => _submitting = false);
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Erreur : vérifiez les informations')));
+        SnackBar(content: Text(_messageOf(error))),
+      );
     }
-  }@override
+  }
+
+  @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
@@ -104,18 +198,67 @@ class _CreateUserScreenState extends ConsumerState<CreateUserScreen> {
               _field(scheme, _lastName, 'Ex. Dupont'),
               const SizedBox(height: 14),
               _label(scheme, 'Email *'),
-              _field(scheme, _email, 'exemple@email.com'),
+              _field(
+                scheme,
+                _email,
+                'exemple@email.com',
+                keyboardType: TextInputType.emailAddress,
+                validator: (value) =>
+                    (value == null || !value.trim().contains('@'))
+                        ? 'Email invalide'
+                        : null,
+              ),
               const SizedBox(height: 14),
               _label(scheme, 'Téléphone'),
-              _field(scheme, _phone, '+243 ...'),
+              _field(scheme, _phone, '+243 ...', required: false,
+                  keyboardType: TextInputType.phone),
               const SizedBox(height: 14),
               _label(scheme, 'Mot de passe *'),
-              _field(scheme, _password, '8 caractères min', obscure: true),
+              _field(
+                scheme,
+                _password,
+                '8 caractères min',
+                obscure: true,
+                validator: (value) => (value == null || value.length < 8)
+                    ? 'Minimum 8 caractères'
+                    : null,
+              ),
               const SizedBox(height: 20),
               _label(scheme, 'Rôle *'),
               _roleSelector(scheme),
+              if (_needsWedding) ...[
+                const SizedBox(height: 20),
+                _label(scheme, 'Événement *'),
+                _eventSelector(scheme),
+              ],
               const SizedBox(height: 24),
               _submitButton(scheme),
+              if (_members.isNotEmpty) ...[
+                const SizedBox(height: 28),
+                _label(scheme, 'Équipe actuelle'),
+                for (final member in _members)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text('${member.firstName} ${member.lastName}'),
+                    subtitle: Text('${member.email} · ${member.roleCode}'),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (member.roleCode == 'AGENT_ACCUEIL')
+                          IconButton(
+                            tooltip: 'Changer d’événement',
+                            icon: const Icon(Icons.event_outlined),
+                            onPressed: () => _reassign(member),
+                          ),
+                        IconButton(
+                          tooltip: 'Retirer',
+                          icon: const Icon(Icons.person_remove_outlined),
+                          onPressed: () => _removeMember(member),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
             ]),
           ),
         ),
@@ -153,29 +296,47 @@ Widget _intro(ColorScheme scheme) {
     );
   }
 
+  String _messageOf(Object error) {
+    if (error is DioException) {
+      final data = error.response?.data;
+      if (data is Map) {
+        final direct = data['error'] ?? data['message'] ?? data['detail'];
+        if (direct != null && direct.toString().trim().isNotEmpty) {
+          return direct.toString();
+        }
+        final errors = data['errors'];
+        if (errors is List && errors.isNotEmpty) {
+          final first = errors.first;
+          if (first is Map) {
+            final text = first['defaultMessage'] ?? first['message'];
+            if (text != null) return text.toString();
+          }
+          return first.toString();
+        }
+      }
+      if (data is String && data.trim().isNotEmpty) return data;
+    }
+    return 'Impossible d’ajouter ce membre. Vérifiez les informations.';
+  }
+
   Widget _field(ColorScheme scheme, TextEditingController c, String hint,
-      {TextInputType? keyboardType, bool obscure = false}) {
+      {TextInputType? keyboardType,
+      bool obscure = false,
+      bool required = true,
+      String? Function(String?)? validator}) {
     return TextFormField(
       controller: c,
       obscureText: obscure,
       keyboardType: keyboardType,
       style: TextStyle(fontSize: 14, color: scheme.onSurface),
-      validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
-      decoration: InputDecoration(
-        hintText: hint,
-        filled: true,
-        fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppRadius.field),
-            borderSide: BorderSide(color: scheme.outlineVariant)),
-        enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppRadius.field),
-            borderSide: BorderSide(color: scheme.outlineVariant)),
-        focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppRadius.field),
-            borderSide: BorderSide(color: scheme.primary, width: 1.5)),
-      ),
+      validator: validator ??
+          (value) {
+            if (!required && (value == null || value.trim().isEmpty)) {
+              return null;
+            }
+            return (value == null || value.trim().isEmpty) ? 'Requis' : null;
+          },
+      decoration: InputDecoration(hintText: hint),
     );
   }
 Widget _roleSelector(ColorScheme scheme) {
@@ -192,7 +353,10 @@ Widget _roleSelector(ColorScheme scheme) {
   Widget _roleChip(ColorScheme scheme, String code, String label) {
     final selected = _roleCode == code;
     return InkWell(
-      onTap: () => setState(() => _roleCode = code),
+      onTap: () => setState(() {
+        _roleCode = code;
+        if (code != 'AGENT_ACCUEIL') _weddingId = null;
+      }),
       borderRadius: BorderRadius.circular(AppRadius.button),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
@@ -216,6 +380,31 @@ Widget _roleSelector(ColorScheme scheme) {
                   color: selected ? Colors.white : scheme.onSurface)),
         ]),
       ),
+    );
+  }
+
+  Widget _eventSelector(ColorScheme scheme) {
+    if (_events.isEmpty) {
+      return Text(
+        'Créez d’abord un événement pour y affecter un agent.',
+        style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
+      );
+    }
+    return DropdownButtonFormField<int>(
+      initialValue: _weddingId,
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadius.field),
+        ),
+      ),
+      hint: const Text('Choisir un événement'),
+      items: [
+        for (final event in _events)
+          DropdownMenuItem(value: event.id, child: Text(event.displayName)),
+      ],
+      onChanged: (value) => setState(() => _weddingId = value),
     );
   }
 

@@ -56,10 +56,10 @@ class InvitationStatsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = InvPalette.of(context);
-    const ok = Color(0xFF1E7A46);
-    const ko = Color(0xFFB3382E);
-    const wait = Color(0xFFA86A1E);
-    const none = Color(0xFF5A6472);
+    const ok = InvColors.success;
+    const ko = InvColors.danger;
+    const wait = InvColors.warning;
+    const none = InvColors.neutral;
     return Container(
       padding: const EdgeInsets.all(InvSpacing.lg),
       decoration: BoxDecoration(

@@ -158,4 +158,17 @@ class WeddingEventApi {
   Future<void> delete(int weddingId, int eventId) async {
     await api.deleteRequest('${ApiConfig.eventsPath}/$weddingId/sessions/$eventId');
   }
+
+  /// Modification (`PUT .../sessions/{sessionId}`).
+  Future<WeddingEvent> update(
+    int weddingId,
+    int eventId,
+    Map<String, dynamic> body,
+  ) async {
+    final json = await api.putJson(
+      '${ApiConfig.eventsPath}/$weddingId/sessions/$eventId',
+      body,
+    );
+    return WeddingEvent.fromJson(json);
+  }
 }

@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
 import 'package:meta/meta.dart';
 
 import '../api/api_client.dart';
@@ -104,6 +107,14 @@ class Wedding {
     required this.status,
     required this.organizationId,
     this.weddingDetails,
+    this.latitude,
+    this.longitude,
+    this.mapUrl,
+    this.displayOrder,
+    // Valeurs par défaut alignées sur `fromJson` (booléens non nullables).
+    this.active = true,
+    this.hasImage = false,
+    this.sessions,
   });
 
   final int id;
@@ -122,6 +133,13 @@ class Wedding {
   final String status;
   final int organizationId;
   final WeddingDetails? weddingDetails;
+  final double? latitude;
+  final double? longitude;
+  final String? mapUrl;
+  final int? displayOrder;
+  final bool active;
+  final bool hasImage;
+  final List<EventSession>? sessions;
 
   /// Type d'événement, ou null si la valeur est inconnue de l'app.
   EventType? get eventTypeEnum => eventTypeFromWire(type);
@@ -145,6 +163,7 @@ class Wedding {
 
   factory Wedding.fromJson(Map<String, dynamic> json) {
     final detailsJson = json['weddingDetails'] as Map<String, dynamic>?;
+    final sessionsJson = json['sessions'] as List<dynamic>?;
     return Wedding(
       id: (json['id'] as num).toInt(),
       name: json['name'] as String? ?? '',
@@ -163,6 +182,16 @@ class Wedding {
       organizationId: ((json['organizationId'] as num?) ?? 0).toInt(),
       weddingDetails:
           detailsJson == null ? null : WeddingDetails.fromJson(detailsJson),
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
+      mapUrl: json['mapUrl'] as String?,
+      displayOrder: (json['displayOrder'] as num?)?.toInt(),
+      active: json['active'] as bool? ?? true,
+      hasImage: json['hasImage'] as bool? ?? false,
+      sessions: sessionsJson
+          ?.whereType<Map<String, dynamic>>()
+          .map(EventSession.fromJson)
+          .toList(),
     );
   }
 }
@@ -175,30 +204,84 @@ class CreateWeddingRequest {
     required this.name,
     required this.eventType,
     this.description,
+    this.message,
+    this.eventDate,
+    this.startTime,
+    this.endTime,
+    this.venueName,
+    this.venueAddress,
+    this.city,
+    this.commune,
+    this.country,
+    this.latitude,
+    this.longitude,
+    this.mapUrl,
     this.groomFirstName,
     this.groomLastName,
     this.brideFirstName,
     this.brideLastName,
+    this.groomPhotoUrl,
+    this.bridePhotoUrl,
+    this.couplePhotoUrl,
+    this.welcomeMessage,
+    this.displayName,
+    this.organizationId,
   });
 
   final String name;
   final EventType eventType;
   final String? description;
+  final String? message;
+  final String? eventDate;
+  final String? startTime;
+  final String? endTime;
+  final String? venueName;
+  final String? venueAddress;
+  final String? city;
+  final String? commune;
+  final String? country;
+  final double? latitude;
+  final double? longitude;
+  final String? mapUrl;
   final String? groomFirstName;
   final String? groomLastName;
   final String? brideFirstName;
   final String? brideLastName;
+  final String? groomPhotoUrl;
+  final String? bridePhotoUrl;
+  final String? couplePhotoUrl;
+  final String? welcomeMessage;
+  final String? displayName;
+  final int? organizationId;
 
   Map<String, dynamic> toJson() => {
         'name': name,
         'type': eventType.wireValue,
         if (description != null) 'description': description,
+        if (message != null) 'message': message,
+        if (eventDate != null) 'eventDate': eventDate,
+        if (startTime != null) 'startTime': startTime,
+        if (endTime != null) 'endTime': endTime,
+        if (venueName != null) 'venueName': venueName,
+        if (venueAddress != null) 'venueAddress': venueAddress,
+        if (city != null) 'city': city,
+        if (commune != null) 'commune': commune,
+        if (country != null) 'country': country,
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
+        if (mapUrl != null) 'mapUrl': mapUrl,
+        if (organizationId != null) 'organizationId': organizationId,
         if (eventType == EventType.wedding)
           'weddingDetails': {
-            'groomFirstName': groomFirstName,
-            'groomLastName': groomLastName,
-            'brideFirstName': brideFirstName,
-            'brideLastName': brideLastName,
+            if (groomFirstName != null) 'groomFirstName': groomFirstName,
+            if (groomLastName != null) 'groomLastName': groomLastName,
+            if (brideFirstName != null) 'brideFirstName': brideFirstName,
+            if (brideLastName != null) 'brideLastName': brideLastName,
+            if (groomPhotoUrl != null) 'groomPhotoUrl': groomPhotoUrl,
+            if (bridePhotoUrl != null) 'bridePhotoUrl': bridePhotoUrl,
+            if (couplePhotoUrl != null) 'couplePhotoUrl': couplePhotoUrl,
+            if (welcomeMessage != null) 'welcomeMessage': welcomeMessage,
+            if (displayName != null) 'displayName': displayName,
           },
       };
 }
@@ -209,16 +292,11 @@ class WeddingApi {
 
   final ApiClient api;
 
-  /// Liste paginée des événements (`GET /api/events`).
-  Future<List<Wedding>> list({int page = 0, int size = 25}) async {
-    final rawList = await api.getList(
-      ApiConfig.eventsPath,
-      queryParameters: {'page': page, 'size': size},
-    );
-    return rawList
-        .whereType<Map<String, dynamic>>()
-        .map((e) => Wedding.fromJson(e))
-        .toList();
+  /// Liste des événements (`GET /api/events`), toutes les pages Spring.
+  Future<List<Wedding>> list({int size = 25}) async {
+    final pageSize = size < 25 ? 25 : size;
+    final rawList = await api.getAllMaps(ApiConfig.eventsPath, size: pageSize);
+    return rawList.map(Wedding.fromJson).toList();
   }
 
   /// Création (`POST /api/events`) — renvoie l'Event créé.
@@ -252,6 +330,47 @@ class WeddingApi {
     final json =
         await api.putJson('${ApiConfig.eventsPath}/$id', request.toJson());
     return Wedding.fromJson(json);
+  }
+
+  /// Charge la photo de couverture en bytes (null si absente).
+  Future<Uint8List?> loadImage(int eventId) async {
+    try {
+      return await api.getBytes('${ApiConfig.eventsPath}/$eventId/image');
+    } on DioException catch (_) {
+      return null;
+    }
+  }
+
+  /// Upload la photo de couverture (`PUT /api/events/{id}/image`).
+  Future<void> uploadImage(int eventId, List<int> bytes, String contentType) async {
+    await api.postMultipart(
+      '${ApiConfig.eventsPath}/$eventId/image',
+      bytes: bytes,
+      contentType: contentType,
+    );
+  }
+
+  /// Supprime la photo de couverture (`DELETE /api/events/{id}/image`).
+  Future<void> deleteImage(int eventId) async {
+    await api.deleteRequest('${ApiConfig.eventsPath}/$eventId/image');
+  }
+
+  /// Charge une photo de la fiche mariage en bytes (null si absente).
+  Future<Uint8List?> loadDetailPhoto(int eventId, String kind) async {
+    try {
+      return await api.getBytes('${ApiConfig.eventsPath}/$eventId/photos/$kind');
+    } on DioException catch (_) {
+      return null;
+    }
+  }
+
+  /// Upload une photo de la fiche mariage (`PUT /api/events/{id}/photos/{kind}`).
+  Future<void> uploadDetailPhoto(int eventId, String kind, List<int> bytes, String contentType) async {
+    await api.postMultipart(
+      '${ApiConfig.eventsPath}/$eventId/photos/$kind',
+      bytes: bytes,
+      contentType: contentType,
+    );
   }
 }
 /// Requête de modification d'un événement (`UpdateEventRequest`).
@@ -296,4 +415,47 @@ class UpdateEventRequest {
         if (country != null) 'country': country,
         if (message != null) 'message': message,
       };
+}
+
+/// Sous-session d'un événement (`EventSessionResponse`).
+class EventSession {
+  const EventSession({
+    this.id,
+    this.name,
+    this.type,
+    this.description,
+    this.sessionDate,
+    this.startTime,
+    this.endTime,
+    this.venueName,
+    this.venueAddress,
+    this.city,
+    this.mapUrl,
+  });
+
+  final int? id;
+  final String? name;
+  final String? type;
+  final String? description;
+  final String? sessionDate;
+  final String? startTime;
+  final String? endTime;
+  final String? venueName;
+  final String? venueAddress;
+  final String? city;
+  final String? mapUrl;
+
+  factory EventSession.fromJson(Map<String, dynamic> json) => EventSession(
+        id: (json['id'] as num?)?.toInt(),
+        name: json['name'] as String?,
+        type: json['type'] as String?,
+        description: json['description'] as String?,
+        sessionDate: json['sessionDate'] as String?,
+        startTime: json['startTime'] as String?,
+        endTime: json['endTime'] as String?,
+        venueName: json['venueName'] as String?,
+        venueAddress: json['venueAddress'] as String?,
+        city: json['city'] as String?,
+        mapUrl: json['mapUrl'] as String?,
+      );
 }

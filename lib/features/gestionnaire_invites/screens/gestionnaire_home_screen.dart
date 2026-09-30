@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../src/theme/gi_ui.dart';
+import '../../../src/theme/gi_ui.dart';
 import '../../organisateur/invitations/screens/invitation_create_screen.dart';
 import '../../organisateur/invitations/screens/invitations_list_screen.dart';
 import '../widgets/gi_modules.dart';

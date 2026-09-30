@@ -9,7 +9,9 @@ import 'checkin_providers.dart';
 /// Écran d'accueil (agent) : saisit un QR/token, consulte l'état, enregistre
 /// l'entrée dans la limite du RSVP. Permission `CHECKIN_CREATE`.
 class CheckInScanPage extends ConsumerStatefulWidget {
-  const CheckInScanPage({super.key});
+  const CheckInScanPage({super.key, required this.weddingId});
+
+  final int weddingId;
 
   @override
   ConsumerState<CheckInScanPage> createState() => _CheckInScanPageState();
@@ -23,6 +25,7 @@ class _CheckInScanPageState extends ConsumerState<CheckInScanPage> {
   CheckInScan? _scan;
   bool _recording = false;
   String? _recordResult;
+  int _attendees = 1;
 
   @override
   void dispose() {
@@ -40,10 +43,14 @@ class _CheckInScanPageState extends ConsumerState<CheckInScanPage> {
     });
     try {
       final api = ref.read(checkInApiProvider);
-      final result = await api.scan(token);
+      final result = await api.scan(
+        weddingId: widget.weddingId,
+        qrToken: token,
+      );
       if (!mounted) return;
       setState(() {
         _scan = result;
+        _attendees = 1;
         _scanDone = true;
         _scanning = false;
       });
@@ -63,8 +70,9 @@ class _CheckInScanPageState extends ConsumerState<CheckInScanPage> {
     try {
       final api = ref.read(checkInApiProvider);
       final result = await api.checkIn(
+        weddingId: widget.weddingId,
         qrToken: _tokenController.text.trim(),
-        numberOfAttendees: 1,
+        numberOfAttendees: _attendees,
       );
       if (!mounted) return;
       setState(() {
@@ -142,11 +150,33 @@ class _CheckInScanPageState extends ConsumerState<CheckInScanPage> {
           ' · Restants : ${scan.remainingAttendees}',
         ),
         const SizedBox(height: 12),
-        if (scan.canCheckIn && scan.remainingAttendees > 0)
+        if (scan.canCheckIn && scan.remainingAttendees > 0) ...[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                onPressed: _attendees > 1 ? () => setState(() => _attendees--) : null,
+                icon: const Icon(Icons.remove_circle_outline),
+              ),
+              Text('$_attendees', style: Theme.of(context).textTheme.headlineSmall),
+              IconButton(
+                onPressed: _attendees < scan.remainingAttendees
+                    ? () => setState(() => _attendees++)
+                    : null,
+                icon: const Icon(Icons.add_circle_outline),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
           FilledButton(
             onPressed: _recording ? null : _recordEntry,
-            child: const Text("Enregistrer l'entrée"),
-          )
+            child: Text(
+              _attendees > 1
+                  ? 'Enregistrer $_attendees entrées'
+                  : "Enregistrer l'entrée",
+            ),
+          ),
+        ]
         else
           Text(
             'Impossible d’enregistrer (RSVP absent, annulé ou complet)',

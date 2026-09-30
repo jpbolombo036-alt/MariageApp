@@ -63,7 +63,55 @@ class _CategoryListPageState extends ConsumerState<CategoryListPage> {
       );
       _load();
     } catch (_) {
-      // échec silencieux
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Création impossible')),
+      );
+    }
+  }
+
+  Future<void> _rename(GuestCategory category) async {
+    final name = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => _CategoryNameDialog(initial: category.name),
+    );
+    if (name == null || name.trim().isEmpty) return;
+    try {
+      await ref.read(guestApiProvider).updateCategory(
+            widget.weddingId,
+            category.id,
+            name.trim(),
+            description: category.description,
+          );
+      await _load();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Modification impossible')),
+      );
+    }
+  }
+
+  Future<void> _delete(GuestCategory category) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Supprimer cette catégorie ?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Retour')),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Supprimer')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ref.read(guestApiProvider).deleteCategory(widget.weddingId, category.id);
+      await _load();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Suppression impossible')),
+      );
     }
   }
 
@@ -108,6 +156,16 @@ class _CategoryListPageState extends ConsumerState<CategoryListPage> {
             subtitle: c.description != null && c.description!.isNotEmpty
                 ? Text(c.description!)
                 : null,
+            trailing: PopupMenuButton<String>(
+              onSelected: (value) {
+                if (value == 'edit') _rename(c);
+                if (value == 'delete') _delete(c);
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(value: 'edit', child: Text('Renommer')),
+                PopupMenuItem(value: 'delete', child: Text('Supprimer')),
+              ],
+            ),
           ),
         );
       },
@@ -117,14 +175,17 @@ class _CategoryListPageState extends ConsumerState<CategoryListPage> {
 
 /// Boîte de dialogue de création d'une catégorie : saisit un nom et le renvoie.
 class _CategoryNameDialog extends StatefulWidget {
-  const _CategoryNameDialog();
+  const _CategoryNameDialog({this.initial = ''});
+
+  final String initial;
 
   @override
   State<_CategoryNameDialog> createState() => _CategoryNameDialogState();
 }
 
 class _CategoryNameDialogState extends State<_CategoryNameDialog> {
-  final _controller = TextEditingController();
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.initial);
 
   @override
   void dispose() {
@@ -135,7 +196,7 @@ class _CategoryNameDialogState extends State<_CategoryNameDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Nouvelle catégorie'),
+      title: Text(widget.initial.isEmpty ? 'Nouvelle catégorie' : 'Renommer'),
       content: TextField(
         controller: _controller,
         autofocus: true,
@@ -148,7 +209,7 @@ class _CategoryNameDialogState extends State<_CategoryNameDialog> {
         ),
         FilledButton(
           onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
-          child: const Text('Créer'),
+          child: Text(widget.initial.isEmpty ? 'Créer' : 'Enregistrer'),
         ),
       ],
     );

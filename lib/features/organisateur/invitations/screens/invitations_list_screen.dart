@@ -243,7 +243,7 @@ class _InvitationsListScreenState
                   value: b.totalCount == 0
                       ? null
                       : (processed / b.totalCount).clamp(0.0, 1.0),
-                  color: const Color(0xFF25D366),
+                  color: InvColors.whatsapp,
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -312,16 +312,20 @@ class _InvitationsListScreenState
     }
   }
 
-  void _openCreate() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const InvitationCreateScreen()),
+  Future<void> _openCreate() async {
+    final created = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => InvitationCreateScreen(weddingId: _wedding?.id),
+      ),
     );
+    if (created == true && mounted) await _refresh();
   }
 
-  void _openDetails(InvitationRow row) {
-    Navigator.of(context).push(
+  Future<void> _openDetails(InvitationRow row) async {
+    await Navigator.of(context).push<bool>(
       MaterialPageRoute(builder: (_) => InvitationDetailsScreen(row: row)),
     );
+    if (mounted) await _refresh();
   }
 
   int _count(String status) =>
@@ -478,7 +482,7 @@ class _InvitationsListScreenState
                 width: 8,
                 height: 8,
                 decoration: const BoxDecoration(
-                  color: Color(0xFFED3A4A),
+                  color: InvColors.notification,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -510,7 +514,7 @@ class _InvitationsListScreenState
                       borderRadius: BorderRadius.circular(InvRadius.pill),
                       child: Ink(
                         decoration: BoxDecoration(
-                          color: const Color(0xFF25D366),
+                          color: InvColors.whatsapp,
                           borderRadius: BorderRadius.circular(InvRadius.pill),
                         ),
                         child: Center(

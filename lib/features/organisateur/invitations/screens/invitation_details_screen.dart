@@ -107,7 +107,7 @@ class _InvitationDetailsScreenState
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            style: TextButton.styleFrom(foregroundColor: const Color(0xFFDC2626)),
+            style: TextButton.styleFrom(foregroundColor: InvColors.destructive),
             child: const Text('Annuler l\u2019invitation'),
           ),
         ],

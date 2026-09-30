@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../src/admin/admin_page.dart';
 import '../../../../src/auth/auth_models.dart';
 import '../../../../src/auth/auth_providers.dart';
 import '../../../../src/theme/app_theme.dart';
+import '../../../../src/theme/theme_controller.dart';
+import '../../../../src/user/profile_edit_page.dart';
 import 'change_password_screen.dart';
 import 'create_user_screen.dart';
 
@@ -50,6 +53,9 @@ class _OrganizerMoreTabState extends ConsumerState<OrganizerMoreTab> {
     final user = auth.user;
     final hasTeamPerm =
         auth.hasPermission(PermissionCodes.organizationManageMembers);
+    final isSuperAdmin =
+        (user?.roles ?? const <String>[]).any((role) => role == 'SUPER_ADMIN');
+    final themeMode = ref.watch(themeModeProvider);
     final displayName =
         user == null ? '—' : '${user.firstName} ${user.lastName}'.trim();
     final email = user?.email ?? '';
@@ -66,7 +72,10 @@ class _OrganizerMoreTabState extends ConsumerState<OrganizerMoreTab> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                  colors: [Color(0xFF4520A5), Color(0xFF6C3BD2)],
+                  colors: [
+                    OrganizerColors.primaryDark,
+                    OrganizerColors.primary,
+                  ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight),
               borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -110,10 +119,24 @@ class _OrganizerMoreTabState extends ConsumerState<OrganizerMoreTab> {
                 label: 'Gérer l\u2019équipe',
                 subtitle: 'Ajouter un membre',
                 onTap: _openCreateUser),
+          if (isSuperAdmin)
+            _tile(scheme,
+                icon: Icons.admin_panel_settings_outlined,
+                label: 'Administration',
+                subtitle: 'Utilisateurs, rôles, organisations',
+                onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const AdminPage(),
+                      ),
+                    )),
           _tile(scheme,
               icon: Icons.person_outline,
               label: 'Informations personnelles',
-              onTap: () {}),
+              onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const ProfileEditPage(),
+                    ),
+                  )),
           _tile(scheme,
               icon: Icons.lock_outline,
               label: 'Changer le mot de passe',
@@ -129,6 +152,11 @@ class _OrganizerMoreTabState extends ConsumerState<OrganizerMoreTab> {
               label: 'Langue',
               value: 'Français',
               onTap: () {}),
+          _tile(scheme,
+              icon: Icons.dark_mode_outlined,
+              label: 'Apparence',
+              value: themeModeLabel(themeMode),
+              onTap: () => showThemeModePicker(context, ref)),
           const SizedBox(height: 24),
           _logoutTile(scheme),
         ],
@@ -190,18 +218,18 @@ class _OrganizerMoreTabState extends ConsumerState<OrganizerMoreTab> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFE3E3).withValues(alpha: 0.6),
+          color: OrganizerColors.dangerBg.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(AppRadius.field),
         ),
         child: Row(
           children: [
-            Icon(Icons.logout, size: 20, color: const Color(0xFFDC2626)),
+            Icon(Icons.logout, size: 20, color: OrganizerColors.danger),
             const SizedBox(width: 12),
             Text('Déconnexion',
                 style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: const Color(0xFFDC2626))),
+                    color: OrganizerColors.danger)),
           ],
         ),
       ),

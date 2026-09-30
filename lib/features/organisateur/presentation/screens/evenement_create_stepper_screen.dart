@@ -1,6 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
+import '../../../../src/admin/admin_providers.dart';
 import '../../../../src/theme/app_theme.dart';
 import '../../../../src/wedding/wedding_api.dart';
 import '../../../../src/wedding/wedding_providers.dart';
@@ -28,8 +32,28 @@ class _EvenementCreateStepperScreenState extends ConsumerState<EvenementCreateSt
   DateTime? _eventDate;
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
+  File? _groomPhoto;
+  File? _bridePhoto;
+  File? _couplePhoto;
 
   bool _submitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _guardCreation());
+  }
+
+  Future<void> _guardCreation() async {
+    try {
+      final enabled = await ref.read(adminApiProvider).isEventCreationEnabled();
+      if (!mounted || enabled) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('La création d’événements est désactivée')),
+      );
+      Navigator.of(context).pop();
+    } catch (_) {}
+  }
 
   @override
   void dispose() {
@@ -50,14 +74,22 @@ class _EvenementCreateStepperScreenState extends ConsumerState<EvenementCreateSt
       _submitting = true;
     });
     try {
-      await ref.read(weddingApiProvider).create(CreateWeddingRequest(
-            // `name` et `eventType` sont requis par l'API /api/events.
+      final dateText = _eventDate == null
+          ? null
+          : '${_eventDate!.year.toString().padLeft(4, '0')}-${_eventDate!.month.toString().padLeft(2, '0')}-${_eventDate!.day.toString().padLeft(2, '0')}';
+      final startText = _startTime == null ? null : '${_startTime!.hour.toString().padLeft(2, '0')}:${_startTime!.minute.toString().padLeft(2, '0')}:00';
+      final endText = _endTime == null ? null : '${_endTime!.hour.toString().padLeft(2, '0')}:${_endTime!.minute.toString().padLeft(2, '0')}:00';
+      final created = await ref.read(weddingApiProvider).create(CreateWeddingRequest(
             name: _nameController.text.trim().isEmpty
                 ? 'Événement'
                 : _nameController.text.trim(),
             eventType: EventType.wedding,
-            // Les 4 champs sont @NotBlank côté backend : on remplit avec les
-            // prénoms/noms saisis, sinon valeur neutre non vide par sécurité.
+            description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
+            message: _welcomeController.text.trim().isEmpty ? null : _welcomeController.text.trim(),
+            eventDate: dateText,
+            startTime: startText,
+            endTime: endText,
+            venueName: _locationController.text.trim().isEmpty ? null : _locationController.text.trim(),
             groomFirstName: _groomFirstNameController.text.trim().isEmpty
                 ? _nameController.text.trim()
                 : _groomFirstNameController.text.trim(),
@@ -68,11 +100,15 @@ class _EvenementCreateStepperScreenState extends ConsumerState<EvenementCreateSt
                 ? 'Invités'
                 : _brideFirstNameController.text.trim(),
             brideLastName: _brideLastNameController.text.trim().isEmpty
-                ? 'MariagePlus'
+                ? 'EventiaEasy'
                 : _brideLastNameController.text.trim(),
-            description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
+            displayName: _nameController.text.trim().isEmpty ? null : _nameController.text.trim(),
+            welcomeMessage: _welcomeController.text.trim().isEmpty ? null : _welcomeController.text.trim(),
           ));
       if (!mounted) return;
+      if (created.id != 0) {
+        _uploadPhotos(created.id);
+      }
       Navigator.of(context).pop(true);
     } catch (_) {
       if (!mounted) return;
@@ -83,6 +119,47 @@ class _EvenementCreateStepperScreenState extends ConsumerState<EvenementCreateSt
         const SnackBar(content: Text('Impossible de créer l\'événement')),
       );
     }
+  }
+
+  Future<void> _uploadPhotos(int eventId) async {
+    final api = ref.read(weddingApiProvider);
+    if (_groomPhoto != null) {
+      await _uploadPhoto(eventId, 'groom', _groomPhoto!, api);
+    }
+    if (_bridePhoto != null) {
+      await _uploadPhoto(eventId, 'bride', _bridePhoto!, api);
+    }
+    if (_couplePhoto != null) {
+      await _uploadPhoto(eventId, 'couple', _couplePhoto!, api);
+    }
+  }
+
+  Future<void> _uploadPhoto(int eventId, String kind, File file, WeddingApi api) async {
+    try {
+      final bytes = await file.readAsBytes();
+      final ext = file.path.split('.').last.toLowerCase();
+      final mime = switch (ext) {
+        'png' => 'image/png',
+        'webp' => 'image/webp',
+        'gif' => 'image/gif',
+        _ => 'image/jpeg',
+      };
+      await api.uploadDetailPhoto(eventId, kind, bytes, mime);
+    } catch (_) {
+      // best-effort : ne pas bloquer la création pour une photo
+    }
+  }
+
+  Future<void> _pickPhoto(Future<File?> Function() picker) async {
+    final file = await picker();
+    if (file != null && mounted) {
+      setState(() {});
+    }
+  }
+
+  String? _photoLabel(File? file) {
+    if (file == null) return null;
+    return file.path.split('/').last;
   }
 
   @override
@@ -315,22 +392,87 @@ class _EvenementCreateStepperScreenState extends ConsumerState<EvenementCreateSt
             hintText: 'Ex. Kasongo',
           ),
         ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: _brideFirstNameController,
-          style: AppTypography.body(color: scheme.onSurface),
-          decoration: const InputDecoration(
-            labelText: 'Prénom de la mariée',
-            hintText: 'Ex. Grâce',
-          ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextButton.icon(
+                    onPressed: () => _pickPhoto(() async {
+                      final picker = ImagePicker();
+                      final file = await picker.pickImage(
+                        source: ImageSource.gallery,
+                        maxWidth: 1024,
+                        maxHeight: 1024,
+                        imageQuality: 85,
+                      );
+                      if (file != null) _groomPhoto = File(file.path);
+                      return _groomPhoto;
+                    }),
+                    icon: Icon(
+                      _groomPhoto == null ? Icons.add_a_photo_outlined : Icons.check_circle_outline,
+                      color: scheme.primary,
+                    ),
+                    label: Text(
+                      _photoLabel(_groomPhoto) ?? 'Photo du marié',
+                      style: AppTypography.small(color: scheme.primary),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextButton.icon(
+                    onPressed: () => _pickPhoto(() async {
+                      final picker = ImagePicker();
+                      final file = await picker.pickImage(
+                        source: ImageSource.gallery,
+                        maxWidth: 1024,
+                        maxHeight: 1024,
+                        imageQuality: 85,
+                      );
+                      if (file != null) _bridePhoto = File(file.path);
+                      return _bridePhoto;
+                    }),
+                    icon: Icon(
+                      _bridePhoto == null ? Icons.add_a_photo_outlined : Icons.check_circle_outline,
+                      color: scheme.primary,
+                    ),
+                    label: Text(
+                      _photoLabel(_bridePhoto) ?? 'Photo de la mariée',
+                      style: AppTypography.small(color: scheme.primary),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
-        TextFormField(
-          controller: _brideLastNameController,
-          style: AppTypography.body(color: scheme.onSurface),
-          decoration: const InputDecoration(
-            labelText: 'Nom de la mariée',
-            hintText: 'Ex. Mbuyi',
+        TextButton.icon(
+          onPressed: () => _pickPhoto(() async {
+            final picker = ImagePicker();
+            final file = await picker.pickImage(
+              source: ImageSource.gallery,
+              maxWidth: 1200,
+              maxHeight: 800,
+              imageQuality: 85,
+            );
+            if (file != null) _couplePhoto = File(file.path);
+            return _couplePhoto;
+          }),
+          icon: Icon(
+            _couplePhoto == null ? Icons.add_a_photo_outlined : Icons.check_circle_outline,
+            color: scheme.primary,
+          ),
+          label: Text(
+            _photoLabel(_couplePhoto) ?? 'Photo du couple',
+            style: AppTypography.small(color: scheme.primary),
           ),
         ),
       ],
@@ -425,7 +567,7 @@ class _EvenementCreateStepperScreenState extends ConsumerState<EvenementCreateSt
             child: Container(
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF4E249E), Color(0xFF6B38D0)],
+                  colors: [OrganizerColors.primaryDark, OrganizerColors.primary],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),

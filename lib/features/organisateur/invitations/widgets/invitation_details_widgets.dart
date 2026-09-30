@@ -132,7 +132,7 @@ class InvitationDetailsInfoCard extends StatelessWidget {
               icon: Icons.people_outline,
               label: 'Réponse RSVP',
               value: rsvpCount,
-              valueColor: const Color(0xFF1E7A46),
+              valueColor: InvColors.success,
             ),
           ],
           if (updatedDate != null)
@@ -208,13 +208,13 @@ class InvitationActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = destructive ? const Color(0xFFDC2626) : InvColors.primary;
+    final fg = destructive ? InvColors.destructive : InvColors.primary;
     return SizedBox(
       width: double.infinity,
       height: 50,
       child: Material(
         color: destructive
-            ? const Color(0xFFDC2626).withValues(alpha: 0.08)
+            ? InvColors.destructive.withValues(alpha: 0.08)
             : InvColors.primaryLight,
         borderRadius: BorderRadius.circular(InvRadius.field),
         child: InkWell(

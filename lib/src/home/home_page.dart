@@ -26,7 +26,7 @@ class HomePage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('MariagePlus'),
+        title: const Text('EventiaEasy'),
         actions: [
           IconButton(
             tooltip: 'Se déconnecter',

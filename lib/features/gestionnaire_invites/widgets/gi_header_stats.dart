@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../src/theme/gi_ui.dart';
+import '../../../src/theme/gi_ui.dart';
 
 /// Header compact du dashboard GESTIONNAIRE_INVITES.
 class GiHeader extends StatelessWidget {
@@ -57,12 +57,12 @@ class GiHeader extends StatelessWidget {
             Positioned(
               right: -1,
               top: -1,
-              child: Container(
-                width: 9,
-                height: 9,
-                decoration: const BoxDecoration(
-                    color: Color(0xFFE05263), shape: BoxShape.circle),
-              ),
+             child: Container(
+                 width: 9,
+                 height: 9,
+                 decoration: BoxDecoration(
+                     color: p.danger, shape: BoxShape.circle),
+               ),
             ),
           ],
         ),

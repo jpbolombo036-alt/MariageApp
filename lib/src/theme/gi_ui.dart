@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
-/// DESIGN SYSTEM — rôle GESTIONNAIRE_INVITES (MariagePlus).
+/// DESIGN SYSTEM — rôle GESTIONNAIRE_INVITES (EventiaEasy).
 /// Palette dédiée clair/sombre, indépendante des autres rôles.
 abstract final class GiColors {
   // Commun
   static const Color primary = Color(0xFF5B2DBD);
   static const Color primaryDeep = Color(0xFF45219B);
+
+  /// Intermédiaire du dégradé du bandeau profil.
+  static const Color primaryMid = Color(0xFF6D45D8);
   static const Color primaryLightBg = Color(0xFFEEE8FF);
 
   // Clair
@@ -25,6 +28,11 @@ abstract final class GiColors {
   static const Color darkPrimary = Color(0xFF7651E6);
   static const Color darkPrimaryBright = Color(0xFF8B6CFF);
 
+  static const Color darkPrimaryLightBg = Color(0xFF2A1F4E);
+  static const Color darkWarningBg = Color(0xFF3D2E0A);
+  static const Color darkDangerBg = Color(0xFF3D1520);
+  static const Color darkSuccessBg = Color(0xFF0A3D24);
+
   // Statuts / accents
   static const Color success = Color(0xFF22A06B);
   static const Color successBg = Color(0xFFEAF8F0);
@@ -40,7 +48,7 @@ abstract final class GiRadius {
   static const double card = 16;
   static const double stat = 16;
   static const double button = 14;
-  static const double field = 12;
+  static const double field = 14;
   static const double avatar = 48;
   static const double miniImage = 12;
 }
@@ -58,6 +66,13 @@ class GiPalette {
     required this.primary,
     required this.primaryBright,
     required this.iconTint,
+    required this.primaryLightBg,
+    required this.warningBg,
+    required this.dangerBg,
+    required this.successBg,
+    required this.danger,
+    required this.warning,
+    required this.success,
   });
 
   final bool isDark;
@@ -71,6 +86,13 @@ class GiPalette {
   final Color primary;
   final Color primaryBright;
   final Color iconTint;
+  final Color primaryLightBg;
+  final Color warningBg;
+  final Color dangerBg;
+  final Color successBg;
+  final Color danger;
+  final Color warning;
+  final Color success;
 
   List<BoxShadow> get cardShadow => [
         BoxShadow(
@@ -97,6 +119,14 @@ class GiPalette {
       primary: dark ? GiColors.darkPrimary : GiColors.primary,
       primaryBright: dark ? GiColors.darkPrimaryBright : GiColors.primary,
       iconTint: dark ? GiColors.darkTextSecondary : GiColors.lightTextSecondary,
+      primaryLightBg:
+          dark ? GiColors.darkPrimaryLightBg : GiColors.primaryLightBg,
+      warningBg: dark ? GiColors.darkWarningBg : GiColors.warningBg,
+      dangerBg: dark ? GiColors.darkDangerBg : GiColors.dangerBg,
+      successBg: dark ? GiColors.darkSuccessBg : GiColors.successBg,
+      danger: GiColors.danger,
+      warning: GiColors.warning,
+      success: GiColors.success,
     );
   }
 }

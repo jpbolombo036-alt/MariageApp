@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../src/auth/auth_providers.dart';
-import '../../../../src/dashboard/dashboard_providers.dart';
-import '../../../../src/theme/gi_ui.dart';
-import '../../../../src/wedding/wedding_providers.dart';
+import '../../../src/auth/auth_providers.dart';
+import '../../../src/dashboard/dashboard_providers.dart';
+import '../../../src/theme/gi_ui.dart';
+import '../../../src/wedding/wedding_providers.dart';
 import '../widgets/gi_header_stats.dart';
 import '../widgets/gi_modules.dart';
 
@@ -82,15 +82,15 @@ class _GiDashboardTabState extends ConsumerState<GiDashboardTab> {
                     color: p.textPrimary)),
             const SizedBox(height: 12),
             Row(children: [
-              Expanded(child: GiQuickStatCard(icon: Icons.group_outlined, iconBg: GiColors.primaryLightBg, value: '$guests', label: 'Invités')),
+              Expanded(child: GiQuickStatCard(icon: Icons.group_outlined, iconBg: p.primaryLightBg, value: '$guests', label: 'Invités')),
               const SizedBox(width: 10),
-              Expanded(child: GiQuickStatCard(icon: Icons.mail_outline_outlined, iconBg: GiColors.primaryLightBg, value: '$sent', label: 'Confirmés')),
+              Expanded(child: GiQuickStatCard(icon: Icons.mail_outline_outlined, iconBg: p.primaryLightBg, value: '$sent', label: 'Confirmés')),
             ]),
             const SizedBox(height: 10),
             Row(children: [
-              Expanded(child: GiQuickStatCard(icon: Icons.access_time_rounded, iconBg: GiColors.warningBg, value: '$present', label: 'Présents')),
+              Expanded(child: GiQuickStatCard(icon: Icons.access_time_rounded, iconBg: p.warningBg, value: '$present', label: 'Présents')),
               const SizedBox(width: 10),
-              Expanded(child: GiQuickStatCard(icon: Icons.event_seat_outlined, iconBg: GiColors.primaryLightBg, value: '$tables', label: 'Tables')),
+              Expanded(child: GiQuickStatCard(icon: Icons.event_seat_outlined, iconBg: p.primaryLightBg, value: '$tables', label: 'Tables')),
             ]),
             const SizedBox(height: 24),
             GiModulesGrid(onTap: widget.onOpenModule),
@@ -116,11 +116,11 @@ class _GiDashboardTabState extends ConsumerState<GiDashboardTab> {
       child: Row(children: [
         ClipRRect(
             borderRadius: BorderRadius.circular(GiRadius.miniImage),
-            child: Container(
-                width: 64,
-                height: 64,
-                color: GiColors.primaryLightBg,
-                child: Icon(Icons.auto_awesome, size: 26, color: p.primary))),
+             child: Container(
+                 width: 64,
+                 height: 64,
+                 color: p.primaryLightBg,
+                 child: Icon(Icons.auto_awesome, size: 26, color: p.primary))),
         const SizedBox(width: 12),
         Expanded(
             child: Column(

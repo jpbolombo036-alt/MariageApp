@@ -10,6 +10,7 @@ class GuestSearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = AgentPalette.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -17,17 +18,25 @@ class GuestSearchBar extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.lightBorder, width: 1),
+          color: p.surfaceAlt,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: p.border),
         ),
-        child: const Row(
+        child: Row(
           children: [
-            Icon(Icons.search, color: AppColors.agentTextSecondary, size: 24),
-            SizedBox(width: 12),
-            Text(
-              'Rechercher un invité...',
-              style: TextStyle(color: AppColors.agentTextSecondary, fontSize: 16),
+            Icon(Icons.search, color: p.textSecondary, size: 22),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Rechercher un invité',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: p.textSecondary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ),
           ],
         ),

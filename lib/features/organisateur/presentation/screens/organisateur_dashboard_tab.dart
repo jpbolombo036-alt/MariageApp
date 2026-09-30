@@ -26,6 +26,8 @@ class _OrganisateurDashboardTabState
   List<Wedding> _events = const [];
   Wedding? _activeEvent;
   Dashboard? _dashboard;
+  UpcomingSession? _upcoming;
+  List<ActivityItem> _activity = const [];
   String? _error;
 
   @override
@@ -63,8 +65,18 @@ class _OrganisateurDashboardTabState
   Future<void> _loadDashboard(int weddingId) async {
     try {
       final dash = await ref.read(dashboardApiProvider).getForWedding(weddingId);
+      UpcomingSession? upcoming;
+      var activity = const <ActivityItem>[];
+      try {
+        upcoming = await ref.read(dashboardApiProvider).upcomingSession(weddingId);
+        activity = await ref.read(dashboardApiProvider).recentActivity(weddingId);
+      } catch (_) {}
       if (!mounted) return;
-      setState(() => _dashboard = dash);
+      setState(() {
+        _dashboard = dash;
+        _upcoming = upcoming;
+        _activity = activity;
+      });
     } catch (_) {
       if (!mounted) return;
       setState(() => _dashboard = null);
@@ -162,6 +174,51 @@ class _OrganisateurDashboardTabState
         ),
         const SizedBox(height: AppSpacing.xxl),
         _buildStatsSection(),
+        if (_upcoming != null) ...[
+          const SizedBox(height: AppSpacing.lg),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.event_outlined),
+              title: Text(_upcoming!.name),
+              subtitle: Text(
+                [
+                  if (_upcoming!.sessionDate != null) _upcoming!.sessionDate!,
+                  if (_upcoming!.startTime != null) _upcoming!.startTime!,
+                  if (_upcoming!.venueName != null) _upcoming!.venueName!,
+                ].join(' · '),
+              ),
+            ),
+          ),
+        ],
+        if (_activity.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.lg),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Activité récente',
+                  style: AppTypography.sectionTitle(
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                for (final item in _activity.take(6))
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(item.action),
+                    subtitle: item.details == null ? null : Text(item.details!),
+                  ),
+              ],
+            ),
+          ),
+        ],
+        if ((_dashboard?.categories ?? const []).isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.xxl),
+          _buildCategories(),
+        ],
         const SizedBox(height: AppSpacing.xxl),
         _buildRecentEvents(),
       ],
@@ -238,6 +295,34 @@ class _OrganisateurDashboardTabState
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategories() {
+    final scheme = Theme.of(context).colorScheme;
+    final categories = _dashboard?.categories ?? const [];
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Catégories', style: AppTypography.sectionTitle(color: scheme.onSurface)),
+          const SizedBox(height: AppSpacing.md),
+          for (final category in categories)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: Card(
+                child: ListTile(
+                  title: Text(category.name),
+                  subtitle: Text(
+                    '${category.totalGuests} invités · ${category.accepted} acceptés · '
+                    '${category.pending} en attente',
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../src/auth/auth_providers.dart';
-import '../../../../src/theme/gi_ui.dart';
+import '../../../src/auth/auth_providers.dart';
+import '../../../src/theme/gi_ui.dart';
+import '../../../src/theme/theme_controller.dart';
+import '../../../src/user/profile_edit_page.dart';
+import '../../organisateur/presentation/screens/change_password_screen.dart';
 import '../widgets/gi_nav.dart';
 
 /// Écran « Mon profil » du rôle GESTIONNAIRE_INVITES.
@@ -65,8 +68,8 @@ class _GiProfileScreenState extends ConsumerState<GiProfileScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               gradient: const LinearGradient(colors: [
-                Color(0xFF45219B),
-                Color(0xFF6D45D8),
+                GiColors.primaryDeep,
+                GiColors.primaryMid,
               ]),
               borderRadius: BorderRadius.circular(GiRadius.card),
             ),
@@ -149,9 +152,26 @@ class _GiProfileScreenState extends ConsumerState<GiProfileScreen> {
         border: Border.all(color: p.border),
       ),
       child: Column(children: [
-        GiSettingsTile(icon: Icons.person_outline, label: 'Informations personnelles', onTap: () {}),
-        GiSettingsTile(icon: Icons.lock_outline, label: 'Changer le mot de passe', onTap: () {}),
-        GiSettingsTile(icon: Icons.tune, label: 'Préférences', onTap: () {}),
+        GiSettingsTile(
+          icon: Icons.person_outline,
+          label: 'Informations personnelles',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const ProfileEditPage()),
+          ),
+        ),
+        GiSettingsTile(
+          icon: Icons.lock_outline,
+          label: 'Changer le mot de passe',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const ChangePasswordScreen()),
+          ),
+        ),
+        GiSettingsTile(
+          icon: Icons.dark_mode_outlined,
+          label: 'Apparence',
+          value: themeModeLabel(ref.watch(themeModeProvider)),
+          onTap: () => showThemeModePicker(context, ref),
+        ),
         GiSettingsTile(icon: Icons.notifications_none_outlined, label: 'Notifications', onTap: () {}),
         GiSettingsTile(icon: Icons.language, label: 'Langue', value: 'Français', onTap: () {}),
       ]),

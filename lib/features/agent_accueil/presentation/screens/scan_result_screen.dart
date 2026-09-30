@@ -7,10 +7,16 @@ import '../../../../src/theme/app_colors.dart';
 
 /// Écran de résultat d'un scan QR (succès / enregistrement d'entrée).
 class ScanResultScreen extends ConsumerStatefulWidget {
-  const ScanResultScreen({super.key, required this.scan, required this.qrToken});
+  const ScanResultScreen({
+    super.key,
+    required this.scan,
+    required this.qrToken,
+    required this.weddingId,
+  });
 
   final CheckInScan scan;
   final String qrToken;
+  final int weddingId;
 
   @override
   ConsumerState<ScanResultScreen> createState() => _ScanResultScreenState();
@@ -24,16 +30,18 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final p = AgentPalette.of(context);
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: p.surface,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: p.surface,
+        foregroundColor: p.textPrimary,
         title: const Text('Résultat'),
       ),
-      body: _result != null ? _buildSuccess() : _buildScanInfo(),
+      body: _result != null ? _buildSuccess(p) : _buildScanInfo(p),
     );
   }
-Widget _buildScanInfo() {
+  Widget _buildScanInfo(AgentPalette p) {
     final s = widget.scan;
     final success = s.canCheckIn && s.remainingAttendees > 0;
     final max = s.remainingAttendees > 0 ? s.remainingAttendees : 1;
@@ -44,21 +52,22 @@ Widget _buildScanInfo() {
         Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: p.surface,
             borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: p.border),
           ),
           child: Column(
             children: [
               Icon(
                 success ? Icons.check_circle : Icons.cancel,
                 size: 64,
-                color: success ? AppColors.success : AppColors.danger,
+                color: success ? AppColors.success : p.danger,
               ),
               const SizedBox(height: 12),
               Text(
                 success ? 'INVITÉ TROUVÉ' : 'PROBLÈME',
-                style: const TextStyle(
-                  color: AppColors.agentNavy,
+                style: TextStyle(
+                  color: p.textPrimary,
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
@@ -67,16 +76,13 @@ Widget _buildScanInfo() {
               Text(
                 s.guestName,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.agentNavy, fontSize: 22, fontWeight: FontWeight.w600),
+                style: TextStyle(color: p.textPrimary, fontSize: 22, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 16),
-              if (success)
-                _infoRow('Invitation : Confirmée')
-              else
-                _infoRow('Invitation : ${_statusLabel(s)}'),
-              _infoRow('Personnes attendues : ${s.expectedAttendees}'),
-              _infoRow('Déjà enregistrées : ${s.checkedInAttendees}'),
-              _infoRow('Restantes : ${s.remainingAttendees}'),
+              _infoRow('Invitation : ${success ? "Confirmée" : _statusLabel(s)}', p),
+              _infoRow('Personnes attendues : ${s.expectedAttendees}', p),
+              _infoRow('Déjà enregistrées : ${s.checkedInAttendees}', p),
+              _infoRow('Restantes : ${s.remainingAttendees}', p),
             ],
           ),
         ),
@@ -84,7 +90,7 @@ Widget _buildScanInfo() {
         if (_error != null) ...[
           Text(
             _error!,
-            style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.w600),
+            style: TextStyle(color: p.danger, fontWeight: FontWeight.w600),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),
@@ -92,7 +98,7 @@ Widget _buildScanInfo() {
         if (success) ...[
           Text(
             'Nombre de personnes à enregistrer',
-            style: const TextStyle(color: AppColors.agentTextSecondary, fontSize: 15, fontWeight: FontWeight.w500),
+            style: TextStyle(color: p.textSecondary, fontSize: 15, fontWeight: FontWeight.w500),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),
@@ -101,25 +107,25 @@ Widget _buildScanInfo() {
             children: [
               IconButton(
                 onPressed: _attendees > 1 ? () => setState(() => _attendees--) : null,
-                icon: const Icon(Icons.remove_circle_outline, size: 34),
+                icon: Icon(Icons.remove_circle_outline, size: 34, color: p.textSecondary),
               ),
               Container(
                 width: 64,
                 height: 48,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: p.surface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.lightBorder),
+                  border: Border.all(color: p.border),
                 ),
                 child: Text(
                   '$_attendees',
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.agentNavy),
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: p.textPrimary),
                 ),
               ),
               IconButton(
                 onPressed: _attendees < max ? () => setState(() => _attendees++) : null,
-                icon: const Icon(Icons.add_circle_outline, size: 34),
+                icon: Icon(Icons.add_circle_outline, size: 34, color: p.textSecondary),
               ),
             ],
           ),
@@ -139,7 +145,7 @@ Widget _buildScanInfo() {
         ] else ...[
           FilledButton.icon(
             style: FilledButton.styleFrom(
-              backgroundColor: AppColors.danger,
+              backgroundColor: p.danger,
               minimumSize: const Size.fromHeight(54),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
@@ -151,7 +157,7 @@ Widget _buildScanInfo() {
       ],
     );
   }
-Widget _buildSuccess() {
+  Widget _buildSuccess(AgentPalette p) {
     final r = _result!;
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -159,25 +165,26 @@ Widget _buildSuccess() {
         Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: p.surface,
             borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: p.border),
           ),
           child: Column(
             children: [
-              const Icon(Icons.check_circle, color: AppColors.success, size: 64),
+              Icon(Icons.check_circle, color: AppColors.success, size: 64),
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'ENTRÉE ENREGISTRÉE',
-                style: TextStyle(color: AppColors.agentNavy, fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(color: p.textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               Text(
                 r.guestName ?? '',
-                style: const TextStyle(color: AppColors.agentNavy, fontSize: 22, fontWeight: FontWeight.w600),
+                style: TextStyle(color: p.textPrimary, fontSize: 22, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 16),
-              _infoRow('Enregistrées / attendues : ${r.checkedInAttendees} / ${r.expectedAttendees}'),
-              _infoRow('Restantes : ${r.remainingAttendees}'),
+              _infoRow('Enregistrées / attendues : ${r.checkedInAttendees} / ${r.expectedAttendees}', p),
+              _infoRow('Restantes : ${r.remainingAttendees}', p),
             ],
           ),
         ),
@@ -201,6 +208,7 @@ Widget _buildSuccess() {
     });
     try {
       final result = await ref.read(checkInApiProvider).checkIn(
+            weddingId: widget.weddingId,
             qrToken: widget.qrToken,
             numberOfAttendees: _attendees,
           );
@@ -225,13 +233,13 @@ Widget _buildSuccess() {
     return 'En attente';
   }
 
-  Widget _infoRow(String text) {
+  Widget _infoRow(String text, AgentPalette p) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Text(
         text,
         textAlign: TextAlign.center,
-        style: const TextStyle(color: AppColors.agentNavy, fontSize: 16),
+        style: TextStyle(color: p.textSecondary, fontSize: 16),
       ),
     );
   }

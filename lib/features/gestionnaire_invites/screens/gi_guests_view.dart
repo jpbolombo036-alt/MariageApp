@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../src/guest/guest_api.dart';
-import '../../../../src/guest/guest_providers.dart';
-import '../../../../src/rsvp/rsvp_api.dart';
-import '../../../../src/theme/gi_ui.dart';
-import '../../../../src/wedding/wedding_api.dart';
-import '../../../../src/wedding/wedding_providers.dart';
+import '../../../src/guest/guest_api.dart';
+import '../../../src/guest/guest_providers.dart';
+import '../../../src/rsvp/rsvp_api.dart';
+import '../../../src/theme/gi_ui.dart';
+import '../../../src/wedding/wedding_api.dart';
+import '../../../src/wedding/wedding_providers.dart';
 import '../widgets/gi_nav.dart';
 import '../widgets/guest_tiles.dart';
 import 'gi_guest_detail_screen.dart';

@@ -30,6 +30,7 @@ class RecentActivitySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = AgentPalette.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -38,8 +39,8 @@ class RecentActivitySection extends StatelessWidget {
           children: [
             Text(
               title,
-              style: const TextStyle(
-                color: AppColors.agentNavy,
+              style: TextStyle(
+                color: p.textPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
@@ -48,97 +49,128 @@ class RecentActivitySection extends StatelessWidget {
               onPressed: onSeeAll,
               child: Text(
                 'Voir tout',
-                style: TextStyle(color: AppColors.agentGold, fontWeight: FontWeight.w600),
+                style: TextStyle(color: p.primary, fontWeight: FontWeight.w600),
               ),
             ),
           ],
         ),
         const SizedBox(height: 8),
         if (items.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
             child: Text(
               'Aucune activité récente',
-              style: TextStyle(color: AppColors.agentTextSecondary, fontSize: 14),
+              style: TextStyle(color: p.textSecondary, fontSize: 14),
             ),
           )
         else
-          for (final item in items) _itemCard(item),
+          for (final item in items) _itemCard(item, p),
       ],
     );
   }
 
-  Widget _itemCard(RecentActivityItem item) {
-    final initials = item.guestName.isEmpty
+  Widget _itemCard(RecentActivityItem item, AgentPalette p) {
+    final words = item.guestName
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .toList();
+    final initials = words.isEmpty
         ? '?'
-        : item.guestName.split(' ').map((w) => w[0]).take(2).join().toUpperCase();
+        : words.map((w) => w[0]).take(2).join().toUpperCase();
     return Container(
-      height: 84,
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        color: p.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: p.border),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           CircleAvatar(
-            radius: 22,
-            backgroundColor: AppColors.agentNavy,
+            radius: 20,
+            backgroundColor: p.primary,
             child: Text(
               initials,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   item.guestName,
-                  style: const TextStyle(
-                    color: AppColors.agentNavy,
-                    fontSize: 16,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: p.textPrimary,
+                    fontSize: 15,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   item.subtitle,
-                  style: const TextStyle(color: AppColors.agentTextSecondary, fontSize: 13),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: p.textSecondary,
+                    fontSize: 13,
+                  ),
                 ),
+                if (item.time != null && item.time!.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    _shortTime(item.time!),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: p.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
-          if (item.time != null) ...[
-            Text(
-              item.time!,
-              style: const TextStyle(color: AppColors.agentTextSecondary, fontSize: 13),
-            ),
-            const SizedBox(width: 10),
-          ],
+          const SizedBox(width: 8),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
             decoration: BoxDecoration(
-              color: AppColors.successBg,
-              borderRadius: BorderRadius.circular(14),
+              color: p.successBg,
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: const Text(
-              '✓ Présent',
-              style: TextStyle(color: AppColors.success, fontSize: 12, fontWeight: FontWeight.w700),
+            child: Text(
+              'Présent',
+              style: TextStyle(
+                color: AppColors.success,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  String _shortTime(String raw) {
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) {
+      return raw.length > 16 ? raw.substring(0, 16) : raw;
+    }
+    final local = parsed.toLocal();
+    final day = local.day.toString().padLeft(2, '0');
+    final month = local.month.toString().padLeft(2, '0');
+    final hour = local.hour.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
+    return '$day/$month · $hour:$minute';
   }
 }

@@ -4,9 +4,10 @@ import '../../theme/app_colors.dart';
 
 /// Décorations florales discrètes en arrière-plan (Stack).
 ///
-/// Si les assets `assets/images/floral_top_left.png` /
-/// `assets/images/floral_bottom_right.png` sont fournis, remplacer les icônes
-/// par `Image.asset(...)` (opacity ≈ 0.3).
+/// Implémenté avec des icônes Material : le projet ne fournit aujourd'hui
+/// qu'un seul asset image (`assets/logo.png`, déclaré dans pubspec.yaml).
+/// Si des visuels floraux sont ajoutés plus tard, les déclarer dans pubspec
+/// puis remplacer les icônes par `Image.asset(...)` (opacity ≈ 0.3).
 class FloralDecorations extends StatelessWidget {
   const FloralDecorations({super.key});
 

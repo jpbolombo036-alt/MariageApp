@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../src/checkin/checkin_api.dart';
+import '../../../../src/checkin/checkin_providers.dart';
 import '../../../../src/dashboard/dashboard_api.dart';
 import '../../../../src/dashboard/dashboard_providers.dart';
 import '../../../../src/theme/app_colors.dart';
@@ -21,6 +23,15 @@ class _AgentAttendanceScreenState extends ConsumerState<AgentAttendanceScreen> {
   bool _loading = true;
   String? _error;
   Dashboard? _dashboard;
+  List<CheckInPresence> _present = const [];
+  List<CheckInSearchHit> _hits = const [];
+  final _query = TextEditingController();
+
+  @override
+  void dispose() {
+    _query.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -29,6 +40,13 @@ class _AgentAttendanceScreenState extends ConsumerState<AgentAttendanceScreen> {
   }
 
   Future<void> _load() async {
+    if (widget.weddingId == 0) {
+      setState(() {
+        _loading = false;
+        _error = 'Aucun événement assigné';
+      });
+      return;
+    }
     setState(() {
       _loading = true;
       _error = null;
@@ -36,9 +54,12 @@ class _AgentAttendanceScreenState extends ConsumerState<AgentAttendanceScreen> {
     try {
       final dash =
           await ref.read(dashboardApiProvider).getForWedding(widget.weddingId);
+      final present =
+          await ref.read(checkInApiProvider).listPresent(widget.weddingId);
       if (!mounted) return;
       setState(() {
         _dashboard = dash;
+        _present = present;
         _loading = false;
       });
     } catch (_) {
@@ -50,6 +71,24 @@ class _AgentAttendanceScreenState extends ConsumerState<AgentAttendanceScreen> {
     }
   }
 
+  Future<void> _search(String query) async {
+    final q = query.trim();
+    if (q.isEmpty || widget.weddingId == 0) {
+      setState(() => _hits = const []);
+      return;
+    }
+    try {
+      final hits = await ref.read(checkInApiProvider).searchGuests(widget.weddingId, q);
+      if (!mounted) return;
+      setState(() => _hits = hits);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Recherche impossible')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -58,6 +97,7 @@ class _AgentAttendanceScreenState extends ConsumerState<AgentAttendanceScreen> {
     if (_error != null) {
       return _ErrorView(message: _error!, onRetry: _load);
     }
+    final p = AgentPalette.of(context);
     final a = _dashboard!.attendance;
     final cats = _dashboard!.categories;
 
@@ -69,17 +109,44 @@ class _AgentAttendanceScreenState extends ConsumerState<AgentAttendanceScreen> {
         children: [
           Text(
             'Présences',
-            style: const TextStyle(
-              color: AppColors.agentNavy,
+            style: TextStyle(
+              color: p.textPrimary,
               fontSize: 24,
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 2),
-          const Text(
+          Text(
             "Suivi des arrivées de l'événement",
-            style: TextStyle(color: AppColors.agentTextSecondary, fontSize: 14),
+            style: TextStyle(color: p.textSecondary, fontSize: 14),
           ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _query,
+            style: TextStyle(color: p.textPrimary),
+            decoration: InputDecoration(
+              hintText: 'Rechercher un invité',
+              prefixIcon: Icon(Icons.search, color: p.textSecondary),
+              border: OutlineInputBorder(borderSide: BorderSide(color: p.border)),
+              enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: p.border)),
+              focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: p.primary)),
+            ),
+            onSubmitted: _search,
+          ),
+          if (_hits.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            for (final hit in _hits)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(hit.guestName, style: TextStyle(color: p.textPrimary)),
+                subtitle: Text(
+                  hit.canCheckIn
+                      ? 'Peut entrer · ${hit.remainingAttendees} restant(s)'
+                      : 'Entrée non disponible',
+                  style: TextStyle(color: p.textSecondary),
+                ),
+              ),
+          ],
           const SizedBox(height: 16),
           Row(
             children: [
@@ -97,10 +164,34 @@ class _AgentAttendanceScreenState extends ConsumerState<AgentAttendanceScreen> {
             ],
           ),
           const SizedBox(height: 20),
-          _ProgressCard(attendance: a),
+          _ProgressCard(attendance: a, palette: p),
           if (cats.isNotEmpty) ...[
             const SizedBox(height: 20),
-            _CategoriesCard(categories: cats),
+            _CategoriesCard(categories: cats, palette: p),
+          ],
+          if (_present.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            Text(
+              'Déjà présents',
+              style: TextStyle(
+                color: p.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            for (final person in _present)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(person.guestName, style: TextStyle(color: p.textPrimary)),
+                subtitle: Text(
+                  [
+                    '${person.numberOfAttendees} personne(s)',
+                    if (person.tableName != null) person.tableName!,
+                    if (person.drinkChoice != null) person.drinkChoice!,
+                  ].join(' · '),
+                  style: TextStyle(color: p.textSecondary),
+                ),
+              ),
           ],
         ],
       ),
@@ -109,9 +200,10 @@ class _AgentAttendanceScreenState extends ConsumerState<AgentAttendanceScreen> {
 }
 /// Carte d'avancement : restants + taux + barre de progression.
 class _ProgressCard extends StatelessWidget {
-  const _ProgressCard({required this.attendance});
+  const _ProgressCard({required this.attendance, required this.palette});
 
   final AttendanceStats attendance;
+  final AgentPalette palette;
 
   @override
   Widget build(BuildContext context) {
@@ -120,9 +212,9 @@ class _ProgressCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: palette.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.lightBorder),
+        border: Border.all(color: palette.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -130,18 +222,18 @@ class _ProgressCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Avancement de la soirée',
                 style: TextStyle(
-                  color: AppColors.agentNavy,
+                  color: palette.textPrimary,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               Text(
                 '${(rate * 100).round()}%',
-                style: const TextStyle(
-                  color: AppColors.agentGold,
+                style: TextStyle(
+                  color: palette.goldBright,
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
                 ),
@@ -154,20 +246,21 @@ class _ProgressCard extends StatelessWidget {
             child: LinearProgressIndicator(
               value: attendance.expected == 0 ? 0 : rate,
               minHeight: 10,
-              backgroundColor: AppColors.lightBorder,
+              backgroundColor: palette.border,
               valueColor:
-                  const AlwaysStoppedAnimation<Color>(AppColors.agentGold),
+                  AlwaysStoppedAnimation<Color>(palette.goldBright),
             ),
           ),
           const SizedBox(height: 14),
           Row(
             children: [
-              _miniStat(Icons.hourglass_empty, 'Restants', '${attendance.remaining}'),
+              _miniStat(Icons.hourglass_empty, 'Restants', '${attendance.remaining}', palette),
               const SizedBox(width: 24),
               _miniStat(
                 Icons.verified_user_outlined,
                 'Taux',
                 '${(rate * 100).round()}%',
+                palette,
               ),
             ],
           ),
@@ -176,15 +269,15 @@ class _ProgressCard extends StatelessWidget {
     );
   }
 
-  Widget _miniStat(IconData icon, String label, String value) {
+  Widget _miniStat(IconData icon, String label, String value, AgentPalette p) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: AppColors.agentNavy),
+        Icon(icon, size: 18, color: p.textPrimary),
         const SizedBox(width: 6),
         Text(
           value,
-          style: const TextStyle(
-            color: AppColors.agentNavy,
+          style: TextStyle(
+            color: p.textPrimary,
             fontSize: 15,
             fontWeight: FontWeight.w700,
           ),
@@ -192,8 +285,8 @@ class _ProgressCard extends StatelessWidget {
         const SizedBox(width: 6),
         Text(
           label,
-          style: const TextStyle(
-            color: AppColors.agentTextSecondary,
+          style: TextStyle(
+            color: p.textSecondary,
             fontSize: 13,
           ),
         ),
@@ -203,9 +296,10 @@ class _ProgressCard extends StatelessWidget {
 }
 /// Répartition attendus / présents par catégorie d'invités.
 class _CategoriesCard extends StatelessWidget {
-  const _CategoriesCard({required this.categories});
+  const _CategoriesCard({required this.categories, required this.palette});
 
   final List<CategoryStats> categories;
+  final AgentPalette palette;
 
   @override
   Widget build(BuildContext context) {
@@ -213,25 +307,25 @@ class _CategoriesCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: palette.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.lightBorder),
+        border: Border.all(color: palette.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Répartition par catégorie',
             style: TextStyle(
-              color: AppColors.agentNavy,
+              color: palette.textPrimary,
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Basé sur les RSVP confirmés',
-            style: TextStyle(color: AppColors.agentTextSecondary, fontSize: 12),
+            style: TextStyle(color: palette.textSecondary, fontSize: 12),
           ),
           const SizedBox(height: 16),
           for (final c in categories) _categoryRow(c),
@@ -256,8 +350,8 @@ class _CategoriesCard extends StatelessWidget {
                 child: Text(
                   cat.name.isEmpty ? 'Sans catégorie' : cat.name,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppColors.agentNavy,
+                  style: TextStyle(
+                    color: palette.textPrimary,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
@@ -265,8 +359,8 @@ class _CategoriesCard extends StatelessWidget {
               ),
               Text(
                 '$accepted / $expected',
-                style: const TextStyle(
-                  color: AppColors.agentTextSecondary,
+                style: TextStyle(
+                  color: palette.textSecondary,
                   fontSize: 13,
                 ),
               ),
@@ -278,7 +372,7 @@ class _CategoriesCard extends StatelessWidget {
             child: LinearProgressIndicator(
               value: rate,
               minHeight: 8,
-              backgroundColor: AppColors.lightBorder,
+              backgroundColor: palette.border,
               valueColor: const AlwaysStoppedAnimation<Color>(AppColors.success),
             ),
           ),
@@ -297,19 +391,19 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = AgentPalette.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, color: AppColors.danger, size: 48),
+            Icon(Icons.error_outline, color: p.danger, size: 48),
             const SizedBox(height: 12),
             Text(
               message,
               textAlign: TextAlign.center,
-              style:
-                  const TextStyle(color: AppColors.agentNavy, fontSize: 15),
+              style: TextStyle(color: p.textPrimary, fontSize: 15),
             ),
             const SizedBox(height: 16),
             OutlinedButton.icon(

@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../theme/app_colors.dart';
+import '../../theme/app_theme.dart';
 
-/// Bouton principal doré (ex. « Se connecter »), pleine largeur, 54dp.
+/// Bouton principal violet (ex. « Se connecter »), pleine largeur, 54dp.
 class AuthPrimaryButton extends StatelessWidget {
   const AuthPrimaryButton({
     super.key,
@@ -24,14 +25,14 @@ class AuthPrimaryButton extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [AppColors.gold, AppColors.goldLight],
+            colors: [OrganizerColors.primary, OrganizerColors.primaryDark],
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
           ),
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: AppColors.gold.withValues(alpha: 0.28),
+              color: OrganizerColors.primary.withValues(alpha: 0.28),
               blurRadius: 16,
               offset: const Offset(0, 8),
             ),

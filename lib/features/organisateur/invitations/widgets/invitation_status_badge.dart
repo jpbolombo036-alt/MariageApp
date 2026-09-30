@@ -58,48 +58,38 @@ InvBadgeStyle invitationStatusStyle(BuildContext context, String? raw) {
     case 'SENT':
       return InvBadgeStyle(
         background: dark
-            ? const Color(0xFF1E3A2A).withValues(alpha: 0.9)
-            : const Color(0xFFE7F6EC),
-        foreground: dark
-            ? const Color(0xFF7BE0A0)
-            : const Color(0xFF1E7A46),
+            ? InvColors.successDarkBg.withValues(alpha: 0.9)
+            : InvColors.successBg,
+        foreground: dark ? InvColors.successOnDark : InvColors.success,
       );
     case 'DRAFT':
       return InvBadgeStyle(
         background: dark
-            ? const Color(0xFF242E44).withValues(alpha: 0.9)
-            : const Color(0xFFEDF1FB),
-        foreground: dark
-            ? const Color(0xFFA9BFF0)
-            : const Color(0xFF4A5CA8),
+            ? InvColors.infoDarkBg.withValues(alpha: 0.9)
+            : InvColors.infoBg,
+        foreground: dark ? InvColors.infoOnDark : InvColors.info,
       );
     case 'EXPIRED':
       return InvBadgeStyle(
         background: dark
-            ? const Color(0xFF3A2E1C).withValues(alpha: 0.9)
-            : const Color(0xFFFBF3E6),
-        foreground: dark
-            ? const Color(0xFFF0C07A)
-            : const Color(0xFFA86A1E),
+            ? InvColors.warningDarkBg.withValues(alpha: 0.9)
+            : InvColors.warningBg,
+        foreground: dark ? InvColors.warningOnDark : InvColors.warning,
       );
     case 'CANCELLED':
     case 'CANCELED':
       return InvBadgeStyle(
         background: dark
-            ? const Color(0xFF3A2026).withValues(alpha: 0.9)
-            : const Color(0xFFFCEBE9),
-        foreground: dark
-            ? const Color(0xFFF2918A)
-            : const Color(0xFFB3382E),
+            ? InvColors.dangerDarkBg.withValues(alpha: 0.9)
+            : InvColors.dangerBg,
+        foreground: dark ? InvColors.dangerOnDark : InvColors.danger,
       );
     default: // GENERATED et valeurs inconnues
       return InvBadgeStyle(
         background: dark
-            ? const Color(0xFF25203A).withValues(alpha: 0.9)
-            : const Color(0xFFEFEBFF),
-        foreground: dark
-            ? const Color(0xFFC5B8F0)
-            : const Color(0xFF5B2CCF),
+            ? InvColors.generatedDarkBg.withValues(alpha: 0.9)
+            : InvColors.generatedBg,
+        foreground: dark ? InvColors.generatedOnDark : InvColors.primary,
       );
   }
 }

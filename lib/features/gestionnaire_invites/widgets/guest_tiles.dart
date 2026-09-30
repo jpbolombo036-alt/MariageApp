@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../src/theme/gi_ui.dart';
+import '../../../src/theme/gi_ui.dart';
 
 /// Badge de statut RSVP (valeurs backend : ACCEPTED / DECLINED / PENDING).
 class RsvpStatusBadge extends StatelessWidget {
@@ -77,14 +77,14 @@ class GuestListItem extends StatelessWidget {
           child: Row(
             children: [
               CircleAvatar(
-                radius: 19,
-                backgroundColor: GiColors.primaryLightBg,
-                child: Text(_initial,
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: GiColors.primary)),
-              ),
+                 radius: 19,
+                 backgroundColor: p.primaryLightBg,
+                 child: Text(_initial,
+                     style: TextStyle(
+                         fontSize: 13,
+                         fontWeight: FontWeight.w700,
+                         color: p.primary)),
+               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(

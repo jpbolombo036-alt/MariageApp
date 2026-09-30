@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// ============================================================================
-/// DESIGN SYSTEM — Module INVITATIONS (MariagePlus)
+/// DESIGN SYSTEM — Module INVITATIONS (EventiaEasy)
 /// ----------------------------------------------------------------------------
 /// Centralise les couleurs, espacements, rayons et styles de texte du module.
 /// Reproduit la maquette de référence (clair + sombre) SANS toucher aux
@@ -38,6 +38,46 @@ abstract final class InvColors {
   static const Color darkTextSecondary = Color(0xFFA8B1C1);
   static const Color darkTextWeak = Color(0xFF7D8798);
   static const Color darkIcon = Color(0xFFC4CBD7);
+
+  // --- Statuts des badges (fond + texte, mode clair / mode sombre) ---
+  /// Envoyée / confirmée (vert).
+  static const Color success = Color(0xFF1E7A46);
+  static const Color successBg = Color(0xFFE7F6EC);
+  static const Color successDarkBg = Color(0xFF1E3A2A);
+  static const Color successOnDark = Color(0xFF7BE0A0);
+
+  /// Brouillon / en attente (indigo).
+  static const Color info = Color(0xFF4A5CA8);
+  static const Color infoBg = Color(0xFFEDF1FB);
+  static const Color infoDarkBg = Color(0xFF242E44);
+  static const Color infoOnDark = Color(0xFFA9BFF0);
+
+  /// Expirée (ambre).
+  static const Color warning = Color(0xFFA86A1E);
+  static const Color warningBg = Color(0xFFFBF3E6);
+  static const Color warningDarkBg = Color(0xFF3A2E1C);
+  static const Color warningOnDark = Color(0xFFF0C07A);
+
+  /// Annulée / refusée (rouge).
+  static const Color danger = Color(0xFFB3382E);
+  static const Color dangerBg = Color(0xFFFCEBE9);
+  static const Color dangerDarkBg = Color(0xFF3A2026);
+  static const Color dangerOnDark = Color(0xFFF2918A);
+
+  /// Générée (violet clair) : le texte clair réutilise [primary].
+  static const Color generatedBg = Color(0xFFEFEBFF);
+  static const Color generatedDarkBg = Color(0xFF25203A);
+  static const Color generatedOnDark = Color(0xFFC5B8F0);
+
+  /// Action destructive (boutons/textes « Supprimer »).
+  static const Color destructive = Color(0xFFDC2626);
+
+  /// Neutre (statistiques sans donnée).
+  static const Color neutral = Color(0xFF5A6472);
+
+  /// Pastille de notification (rouge vif) et vert WhatsApp (diffusion).
+  static const Color notification = Color(0xFFED3A4A);
+  static const Color whatsapp = Color(0xFF25D366);
 }
 
 /// Espacements du module invitations.

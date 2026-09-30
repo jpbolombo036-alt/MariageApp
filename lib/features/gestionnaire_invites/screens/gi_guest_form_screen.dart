@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../src/guest/guest_api.dart';
-import '../../../../src/guest/guest_providers.dart';
-import '../../../../src/theme/gi_ui.dart';
-import '../../../../src/wedding/wedding_providers.dart';
+import '../../../src/guest/guest_api.dart';
+import '../../../src/guest/guest_providers.dart';
+import '../../../src/theme/gi_ui.dart';
+import '../../../src/wedding/wedding_providers.dart';
 import '../widgets/gi_nav.dart';
 
 /// Champ de formulaire réutilisable du rôle GESTIONNAIRE_INVITES.

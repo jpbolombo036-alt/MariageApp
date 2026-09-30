@@ -51,6 +51,7 @@ List<String> superPermissions() => [
       PermissionCodes.invitationCreate,
       PermissionCodes.checkinCreate,
       PermissionCodes.tableCreate,
+      PermissionCodes.organizationManageMembers,
     ];
 
 List<String> organizatorPermissions() => [
@@ -62,9 +63,55 @@ List<String> organizatorPermissions() => [
       PermissionCodes.guestView,
       PermissionCodes.guestCreate,
       PermissionCodes.guestUpdate,
+      PermissionCodes.guestDelete,
       PermissionCodes.categoryView,
       PermissionCodes.categoryCreate,
       PermissionCodes.invitationView,
       PermissionCodes.invitationCreate,
       PermissionCodes.tableCreate,
+      PermissionCodes.organizationManageMembers,
     ];
+
+/// Permissions d'affichage : codes renvoyés par l'API si présents,
+/// sinon matrice locale dérivée des rôles.
+List<String> permissionsFromPayload(
+  Map<String, dynamic> json,
+  List<String> roles,
+) {
+  final codes = <String>{
+    ..._permissionCodes(json['permissions']),
+    ..._permissionCodes(json['authorities']),
+  };
+  final user = json['user'];
+  if (user is Map) {
+    codes.addAll(_permissionCodes(user['permissions']));
+    codes.addAll(_permissionCodes(user['authorities']));
+  }
+  if (codes.isEmpty) return permissionsForRoles(roles);
+  return codes.toList();
+}
+
+Iterable<String> _permissionCodes(dynamic raw) {
+  if (raw is! List) return const [];
+  return raw.map((entry) {
+    if (entry is String) return entry;
+    if (entry is Map) {
+      final code = entry['code'] ?? entry['name'];
+      if (code != null) return code.toString();
+    }
+    return '';
+  }).where((code) => code.isNotEmpty);
+}
+
+/// Alias entre les codes Wedding historiques et les codes Event du backend.
+String? permissionAlias(String code) => switch (code) {
+      PermissionCodes.weddingView => PermissionCodes.eventView,
+      PermissionCodes.weddingCreate => PermissionCodes.eventCreate,
+      PermissionCodes.weddingUpdate => PermissionCodes.eventUpdate,
+      PermissionCodes.weddingDelete => PermissionCodes.eventDelete,
+      PermissionCodes.eventView => PermissionCodes.weddingView,
+      PermissionCodes.eventCreate => PermissionCodes.weddingCreate,
+      PermissionCodes.eventUpdate => PermissionCodes.weddingUpdate,
+      PermissionCodes.eventDelete => PermissionCodes.weddingDelete,
+      _ => null,
+    };

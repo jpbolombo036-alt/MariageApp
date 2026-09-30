@@ -1,13 +1,7 @@
-import 'dart:io';
-
-/// Configuration réseau de l'application MariagePlus.
+/// Configuration réseau de l'application EventiaEasy.
 ///
-/// Le backend Spring Boot écoute sur `SERVER_PORT` (8000 en local).
-/// - Émulateur Android → `http://10.0.2.2:8000` (hôte local vu depuis l'émulateur)
-/// - Desktop / iOS simulator / navigateur → `http://localhost:8000`
-///
-/// À surcharger en production via une URL fournie par l'environnement
-/// (ex. `String.fromEnvironment('API_BASE_URL')`) sans exposer de secret.
+/// API EventiaEasy. Surcharge possible au build avec
+/// `--dart-define=API_BASE_URL=https://…`.
 class ApiConfig {
   ApiConfig._();
 
@@ -16,11 +10,13 @@ class ApiConfig {
     defaultValue: '',
   );
 
+  static const String _productionBaseUrl =
+      'https://mariageplus-production-a657.up.railway.app';
+
   /// URL de base de l'API (sans slash final).
   static String get baseUrl {
     if (_envBaseUrl.isNotEmpty) return _envBaseUrl;
-    if (Platform.isAndroid) return 'http://10.0.2.2:8000';
-    return 'http://localhost:8000';
+    return _productionBaseUrl;
   }
 
   /// Chemins relatifs de l'API.

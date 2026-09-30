@@ -8,9 +8,6 @@ import 'wedding_create_page.dart';
 import 'wedding_detail_page.dart';
 import 'wedding_providers.dart';
 
-/// L'écran « module mariages/événements » : liste les weddings de l'utilisateur
-/// et permet d'en créer (avec choix du type). Les actions sont conditionnées
-/// par les permissions (le backend reste l'autorité).
 class WeddingListPage extends ConsumerStatefulWidget {
   const WeddingListPage({super.key});
 
@@ -21,7 +18,7 @@ class WeddingListPage extends ConsumerStatefulWidget {
 class _WeddingListPageState extends ConsumerState<WeddingListPage> {
   bool _loading = true;
   String? _error;
-  List<Wedding> _weddings = const [];
+  List<Wedding> _items = const [];
 
   @override
   void initState() {
@@ -35,28 +32,18 @@ class _WeddingListPageState extends ConsumerState<WeddingListPage> {
       _error = null;
     });
     try {
-      final api = ref.read(weddingApiProvider);
-      final items = await api.list();
+      final items = await ref.read(weddingApiProvider).list();
       if (!mounted) return;
       setState(() {
-        _weddings = items;
+        _items = items;
         _loading = false;
       });
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       setState(() {
         _error = 'Impossible de charger les événements';
         _loading = false;
       });
-    }
-  }
-
-  Future<void> _openCreate() async {
-    final created = await Navigator.of(context).push<Wedding>(
-      MaterialPageRoute(builder: (_) => const WeddingCreatePage()),
-    );
-    if (created != null) {
-      _load();
     }
   }
 
@@ -66,12 +53,17 @@ class _WeddingListPageState extends ConsumerState<WeddingListPage> {
     final canCreate = auth.hasPermission(PermissionCodes.weddingCreate);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Événements'),
-      ),
+      appBar: AppBar(title: const Text('Événements')),
       floatingActionButton: canCreate
           ? FloatingActionButton(
-              onPressed: _openCreate,
+              onPressed: () async {
+                final created = await Navigator.of(context).push<Wedding>(
+                  MaterialPageRoute(builder: (_) => const WeddingCreatePage()),
+                );
+                if (created != null && mounted) {
+                  _load();
+                }
+              },
               child: const Icon(Icons.add),
             )
           : null,
@@ -86,7 +78,6 @@ class _WeddingListPageState extends ConsumerState<WeddingListPage> {
     if (_error != null) {
       return Center(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(_error!),
             const SizedBox(height: 12),
@@ -95,59 +86,55 @@ class _WeddingListPageState extends ConsumerState<WeddingListPage> {
         ),
       );
     }
-    if (_weddings.isEmpty) {
+    if (_items.isEmpty) {
       return Center(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Text('Aucun événement pour le moment'),
-            const SizedBox(height: 12),
-            if (canCreate)
+            if (canCreate) ...[
+              const SizedBox(height: 12),
               FilledButton(
-                onPressed: _openCreate,
+                onPressed: () async {
+                  final created = await Navigator.of(context).push<Wedding>(
+                    MaterialPageRoute(builder: (_) => const WeddingCreatePage()),
+                  );
+                  if (created != null && mounted) {
+                    _load();
+                  }
+                },
                 child: const Text('Créer un événement'),
               ),
+            ],
           ],
         ),
       );
     }
+
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView.separated(
         padding: const EdgeInsets.all(12),
-        itemCount: _weddings.length,
+        itemCount: _items.length,
         separatorBuilder: (_, index) => const SizedBox(height: 8),
         itemBuilder: (context, index) {
-          final w = _weddings[index];
-          return _WeddingCard(wedding: w);
+          final w = _items[index];
+          final typeLabel = _typeLabel(w.eventTypeEnum);
+          return Card(
+            child: ListTile(
+              leading: CircleAvatar(child: Icon(typeLabel.icon)),
+              title: Text(w.displayName),
+              subtitle: Text('${typeLabel.label} · ${_statusLabel(w.status)}'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => WeddingDetailPage(weddingId: w.id),
+                  ),
+                );
+              },
+            ),
+          );
         },
-      ),
-    );
-  }
-}
-
-/// Carte d'affichage d'un événement (nom + type + statut).
-class _WeddingCard extends StatelessWidget {
-  const _WeddingCard({required this.wedding});
-
-  final Wedding wedding;
-
-  @override
-  Widget build(BuildContext context) {
-    final typeLabel = _typeLabel(wedding.eventTypeEnum);
-    return Card(
-      child: ListTile(
-        leading: CircleAvatar(
-          child: Icon(typeLabel.icon),
-        ),
-        title: Text(wedding.displayName),
-        subtitle: Text('${typeLabel.label} · ${_statusLabel(wedding.status)}'),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => WeddingDetailPage(wedding: wedding),
-          ),
-        ),
       ),
     );
   }

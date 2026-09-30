@@ -6,14 +6,16 @@ import 'checkin_providers.dart';
 
 /// Accès public (invité) : consulter son invitation et répondre au RSVP.
 class PublicRsvpPage extends ConsumerStatefulWidget {
-  const PublicRsvpPage({super.key});
+  const PublicRsvpPage({super.key, this.initialToken});
+
+  final String? initialToken;
 
   @override
   ConsumerState<PublicRsvpPage> createState() => _PublicRsvpPageState();
 }
 
 class _PublicRsvpPageState extends ConsumerState<PublicRsvpPage> {
-  final _tokenController = TextEditingController();
+  late final TextEditingController _tokenController;
 
   bool _loading = false;
   String? _error;
@@ -21,6 +23,15 @@ class _PublicRsvpPageState extends ConsumerState<PublicRsvpPage> {
   int _attendees = 1;
   bool _submitting = false;
   String? _result;
+
+  @override
+  void initState() {
+    super.initState();
+    _tokenController = TextEditingController(text: widget.initialToken ?? '');
+    if ((widget.initialToken ?? '').trim().isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _lookup());
+    }
+  }
 
   @override
   void dispose() {

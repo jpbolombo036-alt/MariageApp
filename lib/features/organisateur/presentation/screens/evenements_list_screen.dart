@@ -9,7 +9,7 @@ import '../../shared/widgets/app_states.dart';
 import 'evenement_create_screen.dart';
 import 'evenement_detail_screen.dart';
 
-/// Liste des Ã?Â©vÃ?Â©nements (ORGANISATEUR).
+/// Liste des Ã©vÃ©nements (ORGANISATEUR).
 class EvenementsListScreen extends ConsumerStatefulWidget {
   const EvenementsListScreen({super.key});
 
@@ -44,7 +44,7 @@ class _EvenementsListScreenState extends ConsumerState<EvenementsListScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _error = 'Impossible de charger les Ã?Â©vÃ?Â©nements';
+        _error = 'Impossible de charger les Ã©vÃ©nements';
         _loading = false;
       });
     }
@@ -63,7 +63,7 @@ class _EvenementsListScreenState extends ConsumerState<EvenementsListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Mes Ã?Â©vÃ?Â©nements',
+          'Mes Ã©vÃ©nements',
           style: AppTypography.display(color: scheme.onSurface),
         ),
         automaticallyImplyLeading: false,
@@ -73,7 +73,7 @@ class _EvenementsListScreenState extends ConsumerState<EvenementsListScreen> {
         backgroundColor: OrganizerColors.primary,
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text(
-          'Nouvel Ã?Â©vÃ?Â©nement',
+          'Nouvel Ã©vÃ©nement',
           style: TextStyle(color: Colors.white),
         ),
       ),
@@ -87,9 +87,9 @@ class _EvenementsListScreenState extends ConsumerState<EvenementsListScreen> {
     if (_events.isEmpty) {
       return AppEmptyState(
         icon: Icons.event_note,
-        title: 'Aucun Ã?Â©vÃ?Â©nement pour le moment',
-        message: 'CrÃ?Â©ez votre premier Ã?Â©vÃ?Â©nement pour commencer.',
-        actionLabel: 'CrÃ?Â©er un Ã?Â©vÃ?Â©nement',
+        title: 'Aucun Ã©vÃ©nement pour le moment',
+        message: 'CrÃ©ez votre premier Ã©vÃ©nement pour commencer.',
+        actionLabel: 'CrÃ©er un Ã©vÃ©nement',
         onAction: _create,
       );
     }
@@ -122,7 +122,7 @@ class _EvenementsListScreenState extends ConsumerState<EvenementsListScreen> {
 
   String _formatLabel(Wedding e) {
     final parts = <String>[
-      e.groomFirstName.isNotEmpty ? e.groomFirstName : 'Ã?â?°vÃ?Â©nement',
+      e.groomFirstName.isNotEmpty ? e.groomFirstName : 'Ã‰vÃ©nement',
       if (e.brideFirstName.isNotEmpty) e.brideFirstName,
     ];
     return parts.join(' & ');
@@ -166,7 +166,7 @@ class _EvenementsListScreenState extends ConsumerState<EvenementsListScreen> {
                 Navigator.of(ctx).pop();
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Modification bientÃ?Â´t disponible'),
+                    content: Text('Modification bientÃ´t disponible'),
                   ),
                 );
               },
@@ -182,3 +182,4 @@ class _EvenementsListScreenState extends ConsumerState<EvenementsListScreen> {
     );
   }
 }
+

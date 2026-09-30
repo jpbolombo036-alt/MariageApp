@@ -1,3 +1,5 @@
+import 'package:dio/dio.dart';
+
 import '../api/api_client.dart';
 import '../api/api_config.dart';
 
@@ -15,6 +17,8 @@ class Guest {
     this.allowedCompanions,
     this.notes,
     required this.active,
+    this.createdAt,
+    this.updatedAt,
   });
 
   final int id;
@@ -28,6 +32,8 @@ class Guest {
   final int? allowedCompanions;
   final String? notes;
   final bool active;
+  final String? createdAt;
+  final String? updatedAt;
 
   /// Nom complet affiché.
   String get displayName => '$firstName $lastName';
@@ -44,6 +50,8 @@ class Guest {
         allowedCompanions: (json['allowedCompanions'] as num?)?.toInt(),
         notes: json['notes'] as String?,
         active: json['active'] as bool? ?? true,
+        createdAt: json['createdAt'] as String?,
+        updatedAt: json['updatedAt'] as String?,
       );
 }
 
@@ -134,13 +142,11 @@ class GuestApi {
   String _categoriesPath(int weddingId) =>
       '${ApiConfig.eventsPath}/$weddingId/guest-categories';
 
-  /// Liste paginée des invités (`GET .../guests`).
-  Future<List<Guest>> listGuests(int weddingId, {int page = 0, int size = 25}) async {
-    final raw = await api.getList(
-      _guestsPath(weddingId),
-      queryParameters: {'page': page, 'size': size},
-    );
-    return raw.whereType<Map<String, dynamic>>().map((e) => Guest.fromJson(e)).toList();
+  /// Liste des invités (`GET .../guests`), toutes les pages Spring.
+  Future<List<Guest>> listGuests(int weddingId, {int size = 25}) async {
+    final pageSize = size < 25 ? 25 : size;
+    final raw = await api.getAllMaps(_guestsPath(weddingId), size: pageSize);
+    return raw.map(Guest.fromJson).toList();
   }
 
   /// Création d'un invité (`POST .../guests`).
@@ -149,13 +155,10 @@ class GuestApi {
     return Guest.fromJson(json);
   }
 
-  /// Liste paginée des catégories (`GET .../guest-categories`).
-  Future<List<GuestCategory>> listCategories(int weddingId, {int page = 0, int size = 25}) async {
-    final raw = await api.getList(
-      _categoriesPath(weddingId),
-      queryParameters: {'page': page, 'size': size},
-    );
-    return raw.whereType<Map<String, dynamic>>().map((e) => GuestCategory.fromJson(e)).toList();
+  /// Liste des catégories (`GET .../guest-categories`), toutes les pages.
+  Future<List<GuestCategory>> listCategories(int weddingId, {int size = 25}) async {
+    final raw = await api.getAllMaps(_categoriesPath(weddingId), size: size);
+    return raw.map(GuestCategory.fromJson).toList();
   }
 
   /// Création d'une catégorie (`POST .../guest-categories`).
@@ -164,10 +167,49 @@ class GuestApi {
     return GuestCategory.fromJson(json);
   }
 
-  /// Modification d'un invite (`PATCH .../guests/{guestId}`).
+  /// Modification d'un invité (`PUT .../guests/{guestId}`).
   Future<Guest> updateGuest(int weddingId, int guestId, UpdateGuestRequest request) async {
-    final json = await api.patchJson('${_guestsPath(weddingId)}/$guestId', request.toJson());
+    final json = await api.putJson('${_guestsPath(weddingId)}/$guestId', request.toJson());
     return Guest.fromJson(json);
+  }
+
+  /// Modification d'une catégorie (`PUT .../guest-categories/{id}`).
+  Future<GuestCategory> updateCategory(
+    int weddingId,
+    int categoryId,
+    String name, {
+    String? description,
+  }) async {
+    final json = await api.putJson(
+      '${_categoriesPath(weddingId)}/$categoryId',
+      {
+        'name': name,
+        if (description != null) 'description': description,
+      },
+    );
+    return GuestCategory.fromJson(json);
+  }
+
+  /// Suppression d'une catégorie (`DELETE .../guest-categories/{id}`).
+  Future<void> deleteCategory(int weddingId, int categoryId) async {
+    await api.deleteRequest('${_categoriesPath(weddingId)}/$categoryId');
+  }
+
+  /// Import CSV (`POST .../guests/import`, champ `file`).
+  Future<Map<String, dynamic>> importGuestsCsv(int weddingId, String csv) async {
+    final form = FormData.fromMap({
+      'file': MultipartFile.fromString(
+        csv,
+        filename: 'invites.csv',
+        contentType: DioMediaType('text', 'csv'),
+      ),
+    });
+    return api.postForm('${_guestsPath(weddingId)}/import', form);
+  }
+
+  /// Suppression logique d'un invité (`DELETE .../guests/{guestId}`).
+  Future<void> deleteGuest(int weddingId, int guestId) async {
+    await api.deleteRequest('${_guestsPath(weddingId)}/$guestId');
   }
 }
 

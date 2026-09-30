@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../../src/guest/guest_api.dart';
-import '../../../../src/rsvp/rsvp_api.dart';
-import '../../../../src/theme/gi_ui.dart';
+import '../../../src/guest/guest_api.dart';
+import '../../../src/rsvp/rsvp_api.dart';
+import '../../../src/theme/gi_ui.dart';
 import '../widgets/gi_nav.dart';
 import '../widgets/guest_tiles.dart';
 import 'gi_guest_form_screen.dart';
@@ -130,13 +130,13 @@ class GiGuestDetailScreen extends StatelessWidget {
         border: Border.all(color: p.border),
       ),
       child: Row(children: [
-        CircleAvatar(radius: 28,
-            backgroundColor: GiColors.primaryLightBg,
-            child: Text(_initial,
-                style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: GiColors.primary))),
+         CircleAvatar(radius: 28,
+             backgroundColor: p.primaryLightBg,
+             child: Text(_initial,
+                 style: TextStyle(
+                     fontSize: 20,
+                     fontWeight: FontWeight.w700,
+                     color: p.primary))),
         const SizedBox(width: 14),
         Expanded(child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

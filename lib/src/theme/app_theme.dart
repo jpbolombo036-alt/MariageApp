@@ -16,6 +16,9 @@ class OrganizerColors {
   static const Color lightBorder = Color(0xFFE9E7EF);
   static const Color lightSurfaceViolet = Color(0xFFF3EEFF);
 
+  /// Fond clair des champs de recherche et pastilles neutres.
+  static const Color fieldFill = Color(0xFFF4F2FA);
+
   static const Color darkBackground = Color(0xFF121015);
   static const Color darkSurface = Color(0xFF1C1920);
   static const Color darkSurfaceSecondary = Color(0xFF26212A);
@@ -31,6 +34,20 @@ class OrganizerColors {
   static const Color dangerBg = Color(0xFFFEE2E2);
   static const Color muted = Color(0xFF71717A);
   static const Color mutedBg = Color(0xFFF3F4F6);
+
+  /// Information / agenda (bleu).
+  static const Color info = Color(0xFF2563EB);
+  static const Color infoBg = Color(0xFFDBEAFE);
+
+  /// Vert de marque WhatsApp (diffusion des invitations).
+  static const Color whatsapp = Color(0xFF25D366);
+
+  /// Variantes claires lisibles sur les héros violets (fond foncé).
+  static const Color successOnDark = Color(0xFF4ADE80);
+  static const Color warningOnDark = Color(0xFFFCD34D);
+
+  /// Fond rose clair dérivé de la couleur d'accent (vignettes, badges).
+  static const Color accentBg = Color(0xFFFCE7F3);
 }
 
 abstract final class AppTypography {
@@ -178,33 +195,40 @@ abstract final class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: isDark ? OrganizerColors.darkSurfaceSecondary : OrganizerColors.lightSurface,
+        fillColor: isDark ? OrganizerColors.darkSurfaceSecondary : Colors.white,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        floatingLabelBehavior: FloatingLabelBehavior.auto,
+        floatingLabelStyle: AppTypography.small(color: scheme.primary)
+            .copyWith(fontWeight: FontWeight.w600),
+        labelStyle: AppTypography.small(color: scheme.onSurface)
+            .copyWith(fontWeight: FontWeight.w600),
+        hintStyle: AppTypography.body(
+          color: isDark ? OrganizerColors.darkSecondary : OrganizerColors.lightSecondary,
+        ),
+        prefixIconColor: isDark ? OrganizerColors.darkSecondary : OrganizerColors.lightSecondary,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(
             color: isDark ? OrganizerColors.darkBorder : OrganizerColors.lightBorder,
-            width: 1,
           ),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(
             color: isDark ? OrganizerColors.darkBorder : OrganizerColors.lightBorder,
-            width: 1,
           ),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          borderSide: BorderSide(color: scheme.primary, width: 1.5),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: scheme.primary, width: 1.6),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          borderSide: const BorderSide(color: OrganizerColors.danger, width: 1),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: OrganizerColors.danger),
         ),
-        labelStyle: AppTypography.small(color: scheme.onSurface),
-        hintStyle: AppTypography.body(
-          color: isDark ? OrganizerColors.darkSecondary : OrganizerColors.lightSecondary,
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: OrganizerColors.danger, width: 1.6),
         ),
       ),
       dividerTheme: DividerThemeData(

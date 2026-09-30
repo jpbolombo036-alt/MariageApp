@@ -1,86 +1,99 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../../../../src/checkin/checkin_api.dart';
 import '../../../../src/checkin/checkin_providers.dart';
-import '../../../../src/checkin/checkin_qr_scanner_page.dart';
 import '../../../../src/theme/app_colors.dart';
 import 'scan_result_screen.dart';
 
-/// Écran de scan QR de l'espace AGENT_ACCUEIL.
-class QrScannerScreen extends StatefulWidget {
-  const QrScannerScreen({super.key});
+const Color _agentBackground = Colors.white;
+
+/// Écran de scan de l'espace agent. La caméra reste dans le cadre :
+/// le retour et la saisie manuelle restent toujours utilisables.
+class QrScannerScreen extends ConsumerStatefulWidget {
+  const QrScannerScreen({super.key, required this.weddingId});
+
+  final int weddingId;
 
   @override
-  State<QrScannerScreen> createState() => _QrScannerScreenState();
+  ConsumerState<QrScannerScreen> createState() => _QrScannerScreenState();
 }
 
-class _QrScannerScreenState extends State<QrScannerScreen> {
-  bool _analyzing = false;
-  bool _openingScanner = false;
+class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
+  final TextEditingController _codeController = TextEditingController();
+  MobileScannerController? _camera;
+  bool _lookingUp = false;
+  bool _cameraOn = false;
   String? _error;
 
-  Future<void> _startScan(WidgetRef ref) async {
-    // Synchronous guard: prevents two concurrent scans/route pushes (which
-    // corrupt the Navigator transitions and cause "RenderBox was not laid
-    // out" assertions).
-    if (_openingScanner) return;
-    _openingScanner = true;
-    setState(() => _error = null);
+  @override
+  void dispose() {
+    _codeController.dispose();
+    _camera?.dispose();
+    super.dispose();
+  }
 
-    try {
-      final token = await Navigator.of(context).push<String>(
-        MaterialPageRoute(builder: (_) => const CheckInQrScannerPage()),
+  void _close() {
+    if (!mounted) return;
+    Navigator.of(context).pop();
+  }
+
+  Future<void> _toggleCamera() async {
+    if (_lookingUp) return;
+    if (_cameraOn) {
+      final camera = _camera;
+      _camera = null;
+      setState(() => _cameraOn = false);
+      await camera?.dispose();
+      return;
+    }
+    setState(() {
+      _error = null;
+      _cameraOn = true;
+      _camera = MobileScannerController(
+        detectionSpeed: DetectionSpeed.noDuplicates,
+        formats: const [BarcodeFormat.qrCode],
       );
-      if (token == null || token.isEmpty || !mounted) return;
+    });
+  }
 
-      setState(() {
-        _analyzing = true;
-        _error = null;
-      });
-
-      try {
-        final scan = await ref.read(checkInApiProvider).scan(token);
-        if (!mounted) return;
-        // Stop the analyzing spinner *before* covering this screen with an
-        // opaque route. A repeating CircularProgressIndicator that keeps
-        // scheduling paint frames on a covered route during the transition is a
-        // known trigger for the "RenderBox was not laid out" assertion. The
-        // _openingScanner guard still blocks any re-entry while we're gone.
-        setState(() {
-          _analyzing = false;
-          _error = null;
-        });
-        final result = await Navigator.of(context).push<bool>(
-          MaterialPageRoute(
+  Future<void> _lookup(String raw) async {
+    final token = invitationTokenFromInput(raw);
+    if (_lookingUp || token.isEmpty) return;
+    _lookingUp = true;
+    setState(() => _error = null);
+    try {
+      final scan = await ref.read(checkInApiProvider).scan(
+            weddingId: widget.weddingId,
+            qrToken: token,
+          );
+      if (!mounted) return;
+      setState(() => _lookingUp = false);
+      await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
             builder: (_) => ScanResultScreen(
               scan: scan,
               qrToken: token,
+              weddingId: widget.weddingId,
             ),
-          ),
-        );
-        if (!mounted) return;
-        if (result == true) {
-          setState(() => _analyzing = false);
-        }
-      } catch (e) {
-        if (!mounted) return;
-        setState(() {
-          _analyzing = false;
-          _error = _translateError(e);
-        });
-      }
-    } finally {
-      _openingScanner = false;
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _lookingUp = false;
+        _error = _translateError(e);
+      });
     }
   }
 
   String _translateError(Object e) {
-    final msg = e.toString();
-    final lower = msg.toLowerCase();
+    final lower = e.toString().toLowerCase();
     if (lower.contains('annul')) return 'Cette invitation a été annulée';
     if (lower.contains('expir')) return 'Cette invitation a expiré';
     if (lower.contains('confir')) {
-      return 'Cet invité n\u2019a pas confirmé sa présence';
+      return 'Cet invité n’a pas confirmé sa présence';
     }
     if (lower.contains('cap') || lower.contains('plein') || lower.contains('complet')) {
       return 'Toutes les personnes prévues ont déjà été enregistrées';
@@ -91,90 +104,164 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: _agentBackground,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
-        title: const Text('Scanner l\u2019invitation'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.flash_on),
-            onPressed: () {},
-          ),
-        ],
+        backgroundColor: _agentBackground,
+        foregroundColor: AppColors.agentNavy,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        leading: IconButton(
+          tooltip: 'Retour',
+          icon: const Icon(Icons.arrow_back),
+          onPressed: _close,
+        ),
+        title: const Text('Scanner l’invitation'),
       ),
-      body: Consumer(builder: (context, ref, _) {
-        return Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              const Text(
-                'Placez le QR code dans le cadre',
-                style: TextStyle(color: AppColors.agentTextSecondary, fontSize: 16),
-              ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0B1220),
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: _analyzing
-                      ? const Center(
-                          child: CircularProgressIndicator(color: AppColors.agentGold),
-                        )
-                      : Center(
-                          child: FilledButton.icon(
-                            onPressed: _analyzing ? null : () => _startScan(ref),
-                            icon: const Icon(Icons.qr_code_scanner),
-                            label: const Text('Scanner'),
-                          ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+        children: [
+          const Text(
+            'Placez le QR code dans le cadre, ou saisissez le code.',
+            style: TextStyle(color: AppColors.agentTextSecondary, fontSize: 16),
+          ),
+          const SizedBox(height: 16),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: ColoredBox(
+                color: AppColors.agentNavy,
+                child: _cameraOn && _camera != null
+                    ? MobileScanner(
+                        controller: _camera,
+                        onDetect: (capture) {
+                          for (final barcode in capture.barcodes) {
+                            final raw = barcode.rawValue;
+                            if (raw == null || raw.trim().isEmpty) continue;
+                            _lookup(raw);
+                            return;
+                          }
+                        },
+                        placeholderBuilder: (_) => const _CameraMessage(
+                          icon: Icons.qr_code_scanner,
+                          message: 'Ouverture de la caméra…',
                         ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              if (_error != null) ...[
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.danger.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error_outline, color: AppColors.danger),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          _error!,
-                          style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.w600),
+                        errorBuilder: (context, error) => _CameraMessage(
+                          icon: Icons.no_photography_outlined,
+                          message: error.errorDetails?.message ??
+                              'Caméra indisponible. Saisissez le code ci-dessous.',
                         ),
+                      )
+                    : const _CameraMessage(
+                        icon: Icons.qr_code_scanner,
+                        message: 'Appuyez sur Scanner pour ouvrir la caméra',
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
-              Row(
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (_lookingUp)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 12),
+              child: Center(
+                child: CircularProgressIndicator(color: AppColors.agentGold),
+              ),
+            ),
+          if (_error != null) ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.danger.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
                 children: [
-                  OutlinedButton.icon(
-                    onPressed: _analyzing ? null : () => _startScan(ref),
-                    icon: const Icon(Icons.qr_code_scanner),
-                    label: const Text('Scanner'),
-                  ),
+                  const Icon(Icons.error_outline, color: AppColors.danger),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {},
-                      icon: const Icon(Icons.keyboard),
-                      label: const Text('Saisir un code'),
+                    child: Text(
+                      _error!,
+                      style: const TextStyle(
+                        color: AppColors.danger,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],
               ),
-            ],
+            ),
+            const SizedBox(height: 12),
+          ],
+          TextField(
+            controller: _codeController,
+            style: const TextStyle(color: AppColors.agentNavy),
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: AppColors.surface,
+              labelText: 'Code de l’invitation',
+              labelStyle: const TextStyle(color: AppColors.agentTextSecondary),
+              hintText: 'Collez le jeton du QR',
+              prefixIcon: const Icon(Icons.keyboard, color: AppColors.agentNavy),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: AppColors.lightBorder),
+              ),
+            ),
+            onSubmitted: _lookup,
           ),
-        );
-      }),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.agentGold,
+              foregroundColor: Colors.white,
+              minimumSize: const Size.fromHeight(52),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            ),
+            onPressed: _lookingUp ? null : () => _toggleCamera(),
+            icon: Icon(_cameraOn ? Icons.close : Icons.qr_code_scanner),
+            label: Text(_cameraOn ? 'Fermer la caméra' : 'Scanner'),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.agentGold,
+              minimumSize: const Size.fromHeight(52),
+              side: const BorderSide(color: AppColors.agentGold),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            ),
+            onPressed: _lookingUp ? null : () => _lookup(_codeController.text),
+            icon: const Icon(Icons.check),
+            label: const Text('Vérifier le code'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CameraMessage extends StatelessWidget {
+  const _CameraMessage({required this.icon, required this.message});
+
+  final IconData icon;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: AppColors.agentGold, size: 48),
+          const SizedBox(height: 12),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white, fontSize: 15),
+          ),
+        ],
+      ),
     );
   }
 }

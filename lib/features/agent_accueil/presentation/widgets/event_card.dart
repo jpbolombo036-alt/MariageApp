@@ -21,54 +21,47 @@ class EventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = AgentPalette.of(context);
     return Container(
       height: 200,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: p.surface,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        boxShadow: p.cardShadow,
       ),
       clipBehavior: Clip.antiAlias,
       child: Row(
         children: [
-          // Partie gauche : contenu.
           Expanded(
             flex: 3,
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                 children: [
-                  const SizedBox(height: 8),
+                children: [
                   Text(
                     eventName ?? 'Événement',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.agentNavy,
-                      fontSize: 22,
+                    style: TextStyle(
+                      color: p.textPrimary,
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
                       height: 1.15,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   if (venue != null && venue!.isNotEmpty)
                     Row(
                       children: [
-                        const Icon(Icons.location_on_outlined, size: 16, color: AppColors.agentTextSecondary),
+                        Icon(Icons.location_on_outlined, size: 16, color: p.textSecondary),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
                             venue!,
-                            style: const TextStyle(color: AppColors.agentTextSecondary, fontSize: 14),
+                            maxLines: 1,
+                            style: TextStyle(color: p.textSecondary, fontSize: 14),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -77,11 +70,15 @@ class EventCard extends StatelessWidget {
                   if (dateLabel != null && dateLabel!.isNotEmpty)
                     Row(
                       children: [
-                        const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.agentTextSecondary),
+                        Icon(Icons.calendar_today_outlined, size: 14, color: p.textSecondary),
                         const SizedBox(width: 4),
-                        Text(
-                          dateLabel!,
-                          style: const TextStyle(color: AppColors.agentTextSecondary, fontSize: 14),
+                        Expanded(
+                          child: Text(
+                            dateLabel!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: p.textSecondary, fontSize: 14),
+                          ),
                         ),
                       ],
                     ),
@@ -89,24 +86,28 @@ class EventCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: isActive ? AppColors.successBg : AppColors.lightBorder,
+                      color: isActive ? p.successBg : p.border,
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         if (isActive) ...[
-                          const Icon(Icons.circle, size: 9, color: AppColors.success),
+                          Icon(Icons.circle, size: 9, color: AppColors.success),
                           const SizedBox(width: 6),
                         ],
-                        Text(
+                        Flexible(
+                          child: Text(
                           statusLabel ?? (isActive ? 'ÉVÉNEMENT EN COURS' : 'ÉVÉNEMENT'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: isActive ? AppColors.success : AppColors.agentTextSecondary,
+                            color: isActive ? AppColors.success : p.textSecondary,
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.4,
                           ),
+                        ),
                         ),
                       ],
                     ),
@@ -115,10 +116,9 @@ class EventCard extends StatelessWidget {
               ),
             ),
           ),
-          // Partie droite : visuel décoratif (ou image couverture).
           Expanded(
             flex: 2,
-            child: _Cover(),
+            child: _Cover(palette: p),
           ),
         ],
       ),
@@ -127,13 +127,17 @@ class EventCard extends StatelessWidget {
 }
 
 class _Cover extends StatelessWidget {
+  const _Cover({required this.palette});
+
+  final AgentPalette palette;
+
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppColors.agentNavy, AppColors.agentGold],
+          colors: [palette.primary, palette.primaryLight],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),

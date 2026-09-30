@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../src/theme/app_theme.dart';
 
-/// En-tÃÂªte de section : titre ÃÂ  gauche + action ÃÂ« Voir tout ÃÂ» ÃÂ  droite.
+/// En-tête de section : titre à gauche + action « Voir tout » à droite.
 class AppSectionHeader extends StatelessWidget {
   const AppSectionHeader({
     super.key,
@@ -40,7 +40,7 @@ class AppSectionHeader extends StatelessWidget {
   }
 }
 
-/// Badge de statut (en cours / ÃÂ  venir / brouillon / confirmÃÂ© / ...).
+/// Badge de statut (en cours / à venir / brouillon / confirmé / ...).
 class AppStatusBadge extends StatelessWidget {
   const AppStatusBadge({
     super.key,
@@ -71,7 +71,7 @@ class AppStatusBadge extends StatelessWidget {
   }
 }
 
-/// Ãâ°tat vide ÃÂ©lÃÂ©gant.
+/// État vide élégant.
 class AppEmptyState extends StatelessWidget {
   const AppEmptyState({
     super.key,
@@ -125,12 +125,12 @@ class AppEmptyState extends StatelessWidget {
   }
 }
 
-/// Ãâ°tat d'erreur avec bouton ÃÂ« RÃÂ©essayer ÃÂ».
+/// État d'erreur avec bouton « Réessayer ».
 class AppErrorState extends StatelessWidget {
   const AppErrorState({
     super.key,
-    this.title = 'Impossible de charger les donnÃÂ©es',
-    this.message = 'VÃÂ©rifiez votre connexion puis rÃÂ©essayez.',
+    this.title = 'Impossible de charger les données',
+    this.message = 'Vérifiez votre connexion puis réessayez.',
     this.onRetry,
   });
 
@@ -164,7 +164,7 @@ class AppErrorState extends StatelessWidget {
             ),
             if (onRetry != null) ...[
               const SizedBox(height: 20),
-              OutlinedButton(onPressed: onRetry, child: const Text('RÃÂ©essayer')),
+              OutlinedButton(onPressed: onRetry, child: const Text('Réessayer')),
             ],
           ],
         ),
@@ -173,7 +173,7 @@ class AppErrorState extends StatelessWidget {
   }
 }
 
-/// Ãâ°tat de chargement (skeleton simple).
+/// État de chargement (skeleton simple).
 class AppLoadingState extends StatelessWidget {
   const AppLoadingState({super.key});
 

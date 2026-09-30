@@ -8,8 +8,6 @@ import 'invitation_create_page.dart';
 import 'invitation_providers.dart';
 import 'invitation_qr_page.dart';
 
-/// Écran invitations d'un événement : liste, création (par invité) et QR.
-/// Les actions sont conditionnées par les permissions.
 class InvitationListPage extends ConsumerStatefulWidget {
   const InvitationListPage({super.key, required this.weddingId});
 
@@ -23,6 +21,7 @@ class _InvitationListPageState extends ConsumerState<InvitationListPage> {
   bool _loading = true;
   String? _error;
   List<Invitation> _invitations = const [];
+  int _pending = 0;
 
   @override
   void initState() {
@@ -38,9 +37,14 @@ class _InvitationListPageState extends ConsumerState<InvitationListPage> {
     try {
       final api = ref.read(invitationApiProvider);
       final items = await api.list(widget.weddingId);
+      var pending = 0;
+      try {
+        pending = await api.countNonResponders(widget.weddingId);
+      } catch (_) {}
       if (!mounted) return;
       setState(() {
         _invitations = items;
+        _pending = pending;
         _loading = false;
       });
     } catch (_) {
@@ -52,12 +56,47 @@ class _InvitationListPageState extends ConsumerState<InvitationListPage> {
     }
   }
 
+  Future<void> _showPending() async {
+    try {
+      final items = await ref.read(invitationApiProvider).listNonResponders(widget.weddingId);
+      if (!mounted) return;
+      await showModalBottomSheet<void>(
+        context: context,
+        builder: (ctx) => SafeArea(
+          child: items.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text('Tous les invités ont répondu'),
+                )
+              : ListView(
+                  children: [
+                    const ListTile(title: Text('Sans réponse')),
+                    for (final inv in items)
+                      ListTile(
+                        title: Text(inv.invitationCode),
+                        subtitle: Text(inv.status),
+                      ),
+                  ],
+                ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Liste des relances indisponible')),
+      );
+    }
+  }
+
   Future<void> _openCreate() async {
-    Navigator.of(context).push(
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => InvitationCreatePage(weddingId: widget.weddingId),
       ),
     );
+    if (mounted) {
+      _load();
+    }
   }
 
   @override
@@ -116,10 +155,20 @@ class _InvitationListPageState extends ConsumerState<InvitationListPage> {
       onRefresh: _load,
       child: ListView.separated(
         padding: const EdgeInsets.all(12),
-        itemCount: _invitations.length,
+        itemCount: _invitations.length + 1,
         separatorBuilder: (_, index) => const SizedBox(height: 8),
         itemBuilder: (context, index) {
-          final inv = _invitations[index];
+          if (index == 0) {
+            return Card(
+              child: ListTile(
+                leading: const Icon(Icons.mark_email_unread_outlined),
+                title: Text('Sans réponse : $_pending'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: _showPending,
+              ),
+            );
+          }
+          final inv = _invitations[index - 1];
           return _InvitationCard(
             weddingId: widget.weddingId,
             invitation: inv,
@@ -130,7 +179,6 @@ class _InvitationListPageState extends ConsumerState<InvitationListPage> {
   }
 }
 
-/// Carte d'une invitation : code + statut, avec affichage du QR.
 class _InvitationCard extends StatelessWidget {
   const _InvitationCard({required this.weddingId, required this.invitation});
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../src/theme/gi_ui.dart';
+import '../../../src/theme/gi_ui.dart';
 
 enum GiTab { home, guests, add, invitations, more }
 
@@ -111,11 +111,12 @@ class GiPrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = GiPalette.of(context);
     return SizedBox(
       width: double.infinity,
       height: 50,
       child: Material(
-        color: GiColors.primary,
+        color: p.primary,
         borderRadius: BorderRadius.circular(GiRadius.button),
         child: InkWell(
           onTap: loading ? null : onTap,

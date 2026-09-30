@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../src/theme/gi_ui.dart';
+import '../../../src/theme/gi_ui.dart';
 import 'gi_header_stats.dart';
 import 'gi_nav.dart';
 
@@ -32,13 +32,13 @@ class GiModulesGrid extends StatelessWidget {
               icon: Icons.group,
               title: 'Invités',
               subtitle: 'Gérer la liste des invités',
-              color: GiColors.primary,
+              color: GiPalette.of(context).primary,
               onTap: () => onTap?.call(0)),
           GiModuleCard(
               icon: Icons.mail_outline,
               title: 'Invitations',
               subtitle: 'Créer et suivre les invitations',
-              color: GiColors.primary,
+              color: GiPalette.of(context).primary,
               onTap: () => onTap?.call(1)),
           GiModuleCard(
               icon: Icons.schedule,

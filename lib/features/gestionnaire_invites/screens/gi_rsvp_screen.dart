@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../src/guest/guest_api.dart';
-import '../../../../src/guest/guest_providers.dart';
-import '../../../../src/rsvp/rsvp_api.dart';
-import '../../../../src/theme/gi_ui.dart';
-import '../../../../src/wedding/wedding_providers.dart';
+import '../../../src/guest/guest_api.dart';
+import '../../../src/guest/guest_providers.dart';
+import '../../../src/rsvp/rsvp_api.dart';
+import '../../../src/theme/gi_ui.dart';
+import '../../../src/wedding/wedding_providers.dart';
 import '../widgets/guest_tiles.dart';
 
 /// Écran « Réponses RSVP » du rôle GESTIONNAIRE_INVITES.

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../src/theme/app_theme.dart';
 
-/// Carte statistique compacte (nombre + libellÃÂ©).
+/// Carte statistique compacte (nombre + libellé).
 class AppStatCard extends StatelessWidget {
   const AppStatCard({
     super.key,
@@ -67,7 +67,7 @@ class AppStatCard extends StatelessWidget {
   }
 }
 
-/// Action rapide (icÃÂ´ne circulaire + libellÃÂ©s).
+/// Action rapide (icône circulaire + libellés).
 class AppQuickAction extends StatelessWidget {
   const AppQuickAction({
     super.key,

@@ -149,6 +149,16 @@ class CheckInScan {
     required this.checkedInAttendees,
     required this.remainingAttendees,
     required this.canCheckIn,
+    this.tableName,
+    this.drinkChoice,
+    this.publicToken,
+    this.invitationCode,
+    this.hasCard,
+    this.checkedInAt,
+    this.eventName,
+    this.eventDate,
+    this.eventTime,
+    this.eventVenue,
   });
 
   final String guestName;
@@ -159,6 +169,16 @@ class CheckInScan {
   final int checkedInAttendees;
   final int remainingAttendees;
   final bool canCheckIn;
+  final String? tableName;
+  final String? drinkChoice;
+  final String? publicToken;
+  final String? invitationCode;
+  final bool? hasCard;
+  final String? checkedInAt;
+  final String? eventName;
+  final String? eventDate;
+  final String? eventTime;
+  final String? eventVenue;
 
   factory CheckInScan.fromJson(Map<String, dynamic> json) => CheckInScan(
         guestName: json['guestName'] as String? ?? '',
@@ -169,6 +189,16 @@ class CheckInScan {
         checkedInAttendees: (json['checkedInAttendees'] as num?)?.toInt() ?? 0,
         remainingAttendees: (json['remainingAttendees'] as num?)?.toInt() ?? 0,
         canCheckIn: json['canCheckIn'] as bool? ?? false,
+        tableName: json['tableName'] as String?,
+        drinkChoice: json['drinkChoice'] as String?,
+        publicToken: json['publicToken'] as String?,
+        invitationCode: json['invitationCode'] as String?,
+        hasCard: json['hasCard'] as bool?,
+        checkedInAt: json['checkedInAt'] as String?,
+        eventName: json['eventName'] as String?,
+        eventDate: json['eventDate'] as String?,
+        eventTime: json['eventTime'] as String?,
+        eventVenue: json['eventVenue'] as String?,
       );
 }
 
@@ -199,68 +229,218 @@ class CheckInApi {
     return PublicRsvp.fromJson(json);
   }
 
-  /// Scan d'un QR (POST /api/checkins/scan).
-  Future<CheckInScan> scan(String qrToken) async {
+  /// Scan d'un QR (`POST /api/checkins/scan`). Le mariage est obligatoire.
+  Future<CheckInScan> scan({
+    required int weddingId,
+    required String qrToken,
+  }) async {
     final json = await api.postJson(
       '${ApiConfig.checkinsPath}/scan',
-      {'qrToken': qrToken},
+      {'weddingId': weddingId, 'qrToken': qrToken},
     );
     return CheckInScan.fromJson(json);
   }
 
-  /// Enregistrement d'un check-in (POST /api/checkins).
+  /// Enregistrement d'un check-in (`POST /api/checkins`).
   Future<CheckInResult> checkIn({
+    required int weddingId,
     required String qrToken,
     required int numberOfAttendees,
   }) async {
     final json = await api.postJson(
       ApiConfig.checkinsPath,
-      {'qrToken': qrToken, 'numberOfAttendees': numberOfAttendees},
+      {
+        'weddingId': weddingId,
+        'qrToken': qrToken,
+        'numberOfAttendees': numberOfAttendees,
+      },
     );
     return CheckInResult.fromJson(json);
   }
+
+  /// Annule une entrée (`DELETE /api/checkins/{id}`).
+  Future<void> cancelCheckIn(int checkInId) async {
+    await api.deleteRequest('${ApiConfig.checkinsPath}/$checkInId');
+  }
+
+  /// Invités déjà présents (`GET /api/checkins/event/{weddingId}`).
+  Future<List<CheckInPresence>> listPresent(int weddingId) async {
+    final raw = await api.getList('${ApiConfig.checkinsPath}/event/$weddingId');
+    return raw
+        .whereType<Map<String, dynamic>>()
+        .map(CheckInPresence.fromJson)
+        .toList();
+  }
+
+  /// Recherche d'un invité à l'accueil (`GET .../search?q=`).
+  Future<List<CheckInSearchHit>> searchGuests(int weddingId, String query) async {
+    final raw = await api.getList(
+      '${ApiConfig.checkinsPath}/event/$weddingId/search',
+      queryParameters: {'q': query},
+    );
+    return raw
+        .whereType<Map<String, dynamic>>()
+        .map(CheckInSearchHit.fromJson)
+        .toList();
+  }
+}
+
+/// Invité présent dans la salle.
+class CheckInPresence {
+  const CheckInPresence({
+    this.invitationId,
+    this.guestId,
+    required this.guestName,
+    required this.numberOfAttendees,
+    this.tableName,
+    this.drinkChoice,
+    this.lastCheckedInAt,
+  });
+
+  final int? invitationId;
+  final int? guestId;
+  final String guestName;
+  final int numberOfAttendees;
+  final String? tableName;
+  final String? drinkChoice;
+  final String? lastCheckedInAt;
+
+  factory CheckInPresence.fromJson(Map<String, dynamic> json) => CheckInPresence(
+        invitationId: (json['invitationId'] as num?)?.toInt(),
+        guestId: (json['guestId'] as num?)?.toInt(),
+        guestName: json['guestName'] as String? ?? '',
+        numberOfAttendees: (json['numberOfAttendees'] as num?)?.toInt() ?? 0,
+        tableName: json['tableName'] as String?,
+        drinkChoice: json['drinkChoice'] as String?,
+        lastCheckedInAt: json['lastCheckedInAt'] as String?,
+      );
+}
+
+/// Résultat de recherche agent.
+class CheckInSearchHit {
+  const CheckInSearchHit({
+    required this.guestName,
+    this.phone,
+    this.invitationCode,
+    this.invitationStatus,
+    required this.canCheckIn,
+    required this.remainingAttendees,
+    this.expectedAttendees,
+    this.checkedInAttendees,
+    this.checkedInAt,
+    this.publicToken,
+    this.tableName,
+    this.rsvpStatus,
+    this.drinkChoice,
+    this.hasCard,
+    this.eventName,
+    this.eventDate,
+    this.eventTime,
+    this.eventVenue,
+  });
+
+  final String guestName;
+  final String? phone;
+  final String? invitationCode;
+  final String? invitationStatus;
+  final bool canCheckIn;
+  final int remainingAttendees;
+  final int? expectedAttendees;
+  final int? checkedInAttendees;
+  final String? checkedInAt;
+  final String? publicToken;
+  final String? tableName;
+  final String? rsvpStatus;
+  final String? drinkChoice;
+  final bool? hasCard;
+  final String? eventName;
+  final String? eventDate;
+  final String? eventTime;
+  final String? eventVenue;
+
+  factory CheckInSearchHit.fromJson(Map<String, dynamic> json) => CheckInSearchHit(
+        guestName: json['guestName'] as String? ?? '',
+        phone: json['phone'] as String?,
+        invitationCode: json['invitationCode'] as String?,
+        invitationStatus: json['invitationStatus'] as String?,
+        canCheckIn: json['canCheckIn'] as bool? ?? false,
+        remainingAttendees: (json['remainingAttendees'] as num?)?.toInt() ?? 0,
+        expectedAttendees: (json['expectedAttendees'] as num?)?.toInt(),
+        checkedInAttendees: (json['checkedInAttendees'] as num?)?.toInt(),
+        checkedInAt: json['checkedInAt'] as String?,
+        publicToken: json['publicToken'] as String?,
+        tableName: json['tableName'] as String?,
+        rsvpStatus: json['rsvpStatus'] as String?,
+        drinkChoice: json['drinkChoice'] as String?,
+        hasCard: json['hasCard'] as bool?,
+        eventName: json['eventName'] as String?,
+        eventDate: json['eventDate'] as String?,
+        eventTime: json['eventTime'] as String?,
+        eventVenue: json['eventVenue'] as String?,
+      );
 }
 
 /// Resultat d'un enregistrement d'entree (CheckInResponse backend).
 class CheckInResult {
   CheckInResult({
-    required this.success,
-    this.message,
+    this.checkInId,
     this.guestName,
     this.weddingDisplayName,
     this.invitationStatus,
     this.rsvpStatus,
     this.numberOfAttendees,
+    this.checkedInAt,
     this.expectedAttendees,
     this.checkedInAttendees,
     this.remainingAttendees,
     this.tableName,
+    this.drinkChoice,
+    this.publicToken,
+    this.invitationCode,
+    this.hasCard,
+    this.eventDate,
+    this.eventTime,
+    this.eventVenue,
   });
 
-  final bool success;
-  final String? message;
+  final int? checkInId;
   final String? guestName;
   final String? weddingDisplayName;
   final String? invitationStatus;
   final String? rsvpStatus;
   final int? numberOfAttendees;
+  final String? checkedInAt;
   final int? expectedAttendees;
   final int? checkedInAttendees;
   final int? remainingAttendees;
   final String? tableName;
+  final String? drinkChoice;
+  final String? publicToken;
+  final String? invitationCode;
+  final bool? hasCard;
+  final String? eventDate;
+  final String? eventTime;
+  final String? eventVenue;
 
   factory CheckInResult.fromJson(Map<String, dynamic> json) => CheckInResult(
-        success: json['success'] as bool? ?? true,
-        message: json['message'] as String?,
+        checkInId: (json['checkInId'] as num?)?.toInt(),
         guestName: json['guestName'] as String?,
         weddingDisplayName: json['weddingDisplayName'] as String?,
         invitationStatus: json['invitationStatus'] as String?,
         rsvpStatus: json['rsvpStatus'] as String?,
         numberOfAttendees: (json['numberOfAttendees'] as num?)?.toInt(),
+        checkedInAt: json['checkedInAt'] as String?,
         expectedAttendees: (json['expectedAttendees'] as num?)?.toInt(),
         checkedInAttendees: (json['checkedInAttendees'] as num?)?.toInt(),
         remainingAttendees: (json['remainingAttendees'] as num?)?.toInt(),
         tableName: json['tableName'] as String?,
+        drinkChoice: json['drinkChoice'] as String?,
+        publicToken: json['publicToken'] as String?,
+        invitationCode: json['invitationCode'] as String?,
+        hasCard: json['hasCard'] as bool?,
+        eventDate: json['eventDate'] as String?,
+        eventTime: json['eventTime'] as String?,
+        eventVenue: json['eventVenue'] as String?,
       );
 }
 
