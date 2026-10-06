@@ -184,7 +184,7 @@ class GuestApi {
       '${_categoriesPath(weddingId)}/$categoryId',
       {
         'name': name,
-        if (description != null) 'description': description,
+        'description': ?description,
       },
     );
     return GuestCategory.fromJson(json);

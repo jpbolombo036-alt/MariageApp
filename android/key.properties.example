@@ -1,0 +1,20 @@
+# Modele de signature de release pour EventiaEasy.
+#
+# Utilisation :
+#   1. Copier ce fichier en `android/key.properties`
+#   2. Generer un keystore (une seule fois) :
+#        keytool -genkey -v -keystore %USERPROFILE%\\eventiaeasy-release.jks ^
+#          -storetype JKS -keyalg RSA -keysize 2048 -validity 10000 -alias eventiaeasy
+#   3. Renseigner les 4 valeurs ci-dessous
+#   4. Relancer :  .\tools\flutter_build.ps1 -Task apk
+#
+# Sans ce fichier, la release est signee avec la cle debug (build fonctionnel
+# mais NON publiable sur le Play Store).
+#
+# NE JAMAIS committer ce fichier (android/.gitignore l'exclut deja).
+
+storePassword=MOT_DE_PASSE_DU_KEYSTORE
+keyPassword=MOT_DE_PASSE_DE_LA_CLE
+keyAlias=eventiaeasy
+# Chemin absolu ou relatif a android/app
+storeFile=C:/Users/vous/eventiaeasy-release.jks

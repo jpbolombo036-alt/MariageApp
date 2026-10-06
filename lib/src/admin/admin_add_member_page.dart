@@ -102,7 +102,7 @@ class _AdminAddMemberPageState extends ConsumerState<AdminAddMemberPage> {
             AppTextField(controller: _passwordController, label: 'Mot de passe', obscureText: true, validator: (v) => (v == null || v.isEmpty) ? 'Requis' : null),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: _roleCode,
+              initialValue: _roleCode,
               decoration: const InputDecoration(labelText: 'Rôle'),
               items: [
                 for (final role in _roles)

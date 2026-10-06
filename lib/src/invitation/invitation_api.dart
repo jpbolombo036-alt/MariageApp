@@ -134,7 +134,7 @@ class InvitationApi {
   }) async {
     final json = await api.putJson(
       '${_path(weddingId)}/$invitationId',
-      {if (status != null) 'status': status},
+      {'status': ?status},
     );
     return Invitation.fromJson(json);
   }

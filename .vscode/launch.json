@@ -1,0 +1,42 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "EventiaEasy : Local (defaut dev)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": ["--dart-define=API_ENV=local"]
+    },
+    {
+      "name": "EventiaEasy : Production (API Railway)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": ["--dart-define=API_ENV=prod"]
+    },
+    {
+      "name": "EventiaEasy : API personnalisee",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": ["--dart-define=API_BASE_URL=http://192.168.1.10:8000"]
+    },
+    {
+      "name": "EventiaEasy : Profil (perf)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "flutterMode": "profile",
+      "args": ["--dart-define=API_ENV=prod"]
+    },
+    {
+      "name": "EventiaEasy : Release (device reel)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "flutterMode": "release",
+      "args": ["--dart-define=API_ENV=prod"]
+    }
+  ]
+}

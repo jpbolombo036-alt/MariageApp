@@ -25,9 +25,9 @@ class EventMediaApi {
     bool? enabled,
   }) async {
     final json = await api.putJson(_gallery(eventId), {
-      if (title != null) 'title': title,
-      if (description != null) 'description': description,
-      if (enabled != null) 'enabled': enabled,
+      'title': ?title,
+      'description': ?description,
+      'enabled': ?enabled,
     });
     return EventGallery.fromJson(json);
   }

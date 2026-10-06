@@ -340,6 +340,17 @@ class ApiClient {
     );
     await _dio.post<dynamic>(path, data: FormData.fromMap({'file': part}));
   }
+
+  /// PUT multipart binaire brut (`file`) pour upload d'images (ex. avatar).
+  Future<void> putMultipart(String path,
+      {required List<int> bytes, required String contentType}) async {
+    final part = MultipartFile.fromBytes(
+      bytes,
+      contentType: DioMediaType.parse(contentType),
+      filename: 'upload',
+    );
+    await _dio.put<dynamic>(path, data: FormData.fromMap({'file': part}));
+  }
 }
 
 /// Tranche de pagination Spring Boot.

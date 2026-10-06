@@ -9,7 +9,11 @@ import 'table_providers.dart';
 /// Écran d'affectation d'invités à une table : liste des invités du mariage,
 /// sélection d'un invité → affectation à la table courante.
 class TableAssignPage extends ConsumerStatefulWidget {
-  const TableAssignPage({super.key, required this.weddingId, required this.table});
+  const TableAssignPage({
+    super.key,
+    required this.weddingId,
+    required this.table,
+  });
 
   final int weddingId;
   final WeddingTable table;
@@ -27,6 +31,13 @@ class _TableAssignPageState extends ConsumerState<TableAssignPage> {
   bool _submitting = false;
   String? _result;
 
+  List<TableAssignment> get _currentAssignments =>
+      _assignments.where((item) => item.tableId == widget.table.id).toList();
+
+  List<Guest> get _unassignedGuests => _guests
+      .where((guest) => !_assignments.any((item) => item.guestId == guest.id))
+      .toList();
+
   @override
   void initState() {
     super.initState();
@@ -39,14 +50,15 @@ class _TableAssignPageState extends ConsumerState<TableAssignPage> {
       _error = null;
     });
     try {
-      final guests = await ref.read(guestApiProvider).listGuests(widget.weddingId);
+      final guests = await ref
+          .read(guestApiProvider)
+          .listGuests(widget.weddingId);
       final tables = await ref.read(tableApiProvider).list(widget.weddingId);
       List<TableAssignment> assignments = const [];
       try {
-        assignments = await ref.read(tableApiProvider).listAssignments(
-              weddingId: widget.weddingId,
-              tableId: widget.table.id,
-            );
+        assignments = await ref
+            .read(tableApiProvider)
+            .listAllAssignments(widget.weddingId);
       } catch (_) {
         assignments = const [];
       }
@@ -68,7 +80,17 @@ class _TableAssignPageState extends ConsumerState<TableAssignPage> {
   }
 
   Future<void> _assign(Guest guest) async {
-    if (widget.table.remainingCapacity <= 0) return;
+    final table = _tables
+        .where((item) => item.id == widget.table.id)
+        .firstOrNull;
+    final seatsRequired = 1 + (guest.allowedCompanions ?? 0);
+    if (table == null || seatsRequired > table.remainingCapacity) {
+      setState(
+        () => _result =
+            'Places insuffisantes : $seatsRequired place(s) nécessaires, ${table?.remainingCapacity ?? 0} libre(s).',
+      );
+      return;
+    }
     setState(() {
       _submitting = true;
       _result = null;
@@ -97,7 +119,9 @@ class _TableAssignPageState extends ConsumerState<TableAssignPage> {
 
   @override
   Widget build(BuildContext context) {
-    final t = widget.table;
+    final t =
+        _tables.where((item) => item.id == widget.table.id).firstOrNull ??
+        widget.table;
     return Scaffold(
       appBar: AppBar(title: Text('Affecter — ${t.name}')),
       body: _buildBody(t),
@@ -105,8 +129,20 @@ class _TableAssignPageState extends ConsumerState<TableAssignPage> {
   }
 
   Future<void> _move(TableAssignment assignment) async {
-    final targets = _tables.where((table) => table.id != widget.table.id).toList();
-    if (targets.isEmpty) return;
+    final targets = _tables
+        .where(
+          (table) =>
+              table.id != widget.table.id &&
+              table.remainingCapacity >= 1 + assignment.companions,
+        )
+        .toList();
+    if (targets.isEmpty) {
+      setState(
+        () => _result =
+            'Aucune autre table ne possède assez de places pour ce groupe.',
+      );
+      return;
+    }
     final targetId = await showDialog<int>(
       context: context,
       builder: (ctx) => SimpleDialog(
@@ -115,7 +151,9 @@ class _TableAssignPageState extends ConsumerState<TableAssignPage> {
           for (final table in targets)
             SimpleDialogOption(
               onPressed: () => Navigator.of(ctx).pop(table.id),
-              child: Text(table.name),
+              child: Text(
+                '${table.name} · ${table.remainingCapacity} place(s) libre(s)',
+              ),
             ),
         ],
       ),
@@ -123,7 +161,9 @@ class _TableAssignPageState extends ConsumerState<TableAssignPage> {
     if (targetId == null) return;
     setState(() => _submitting = true);
     try {
-      await ref.read(tableApiProvider).move(
+      await ref
+          .read(tableApiProvider)
+          .move(
             weddingId: widget.weddingId,
             assignmentId: assignment.assignmentId,
             targetTableId: targetId,
@@ -143,7 +183,9 @@ class _TableAssignPageState extends ConsumerState<TableAssignPage> {
   Future<void> _remove(TableAssignment assignment) async {
     setState(() => _submitting = true);
     try {
-      await ref.read(tableApiProvider).remove(
+      await ref
+          .read(tableApiProvider)
+          .remove(
             weddingId: widget.weddingId,
             assignmentId: assignment.assignmentId,
           );
@@ -182,15 +224,15 @@ class _TableAssignPageState extends ConsumerState<TableAssignPage> {
             child: Text(_result!),
           ),
         ],
-        if (_assignments.isNotEmpty)
+        if (_currentAssignments.isNotEmpty)
           SizedBox(
             height: 160,
             child: ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 12),
-              itemCount: _assignments.length,
+              itemCount: _currentAssignments.length,
               separatorBuilder: (_, index) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
-                final assignment = _assignments[index];
+                final assignment = _currentAssignments[index];
                 return ListTile(
                   title: Text(assignment.guestName),
                   subtitle: Text(assignment.tableName),
@@ -204,7 +246,9 @@ class _TableAssignPageState extends ConsumerState<TableAssignPage> {
                       ),
                       IconButton(
                         tooltip: 'Retirer',
-                        onPressed: _submitting ? null : () => _remove(assignment),
+                        onPressed: _submitting
+                            ? null
+                            : () => _remove(assignment),
                         icon: const Icon(Icons.person_remove_outlined),
                       ),
                     ],
@@ -216,14 +260,18 @@ class _TableAssignPageState extends ConsumerState<TableAssignPage> {
         Expanded(
           child: ListView.separated(
             padding: const EdgeInsets.all(12),
-            itemCount: _guests.length,
+            itemCount: _unassignedGuests.length,
             separatorBuilder: (_, index) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
-              final g = _guests[index];
+              final g = _unassignedGuests[index];
               return ListTile(
                 leading: const CircleAvatar(),
                 title: Text(g.displayName),
-                subtitle: Text(g.email ?? ''),
+                subtitle: Text(
+                  g.allowedCompanions == null || g.allowedCompanions == 0
+                      ? 'Sans accompagnant'
+                      : '+${g.allowedCompanions} accompagnant(s)',
+                ),
                 trailing: const Icon(Icons.assignment_add),
                 onTap: _submitting ? null : () => _assign(g),
               );

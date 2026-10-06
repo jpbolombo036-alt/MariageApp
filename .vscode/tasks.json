@@ -1,0 +1,110 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Flutter: pub get",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["pub", "get"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Flutter: doctor",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["doctor", "-v"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Flutter: analyze",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["analyze"],
+      "problemMatcher": "$dart-analyze"
+    },
+    {
+      "label": "Flutter: run (backend local)",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["run", "--dart-define=API_ENV=local"],
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "APK release (robuste, script)",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/tools/flutter_build.ps1",
+        "-Task",
+        "apk"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "APK release (split par ABI, plus leger)",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/tools/flutter_build.ps1",
+        "-Task",
+        "apk",
+        "-SplitPerAbi"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "App Bundle AAB (Play Store)",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/tools/flutter_build.ps1",
+        "-Task",
+        "aab"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "REPARER cache Gradle (verrous corrompus)",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/tools/flutter_build.ps1",
+        "-Task",
+        "repair"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Flutter: clean complet + pub get",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/tools/flutter_build.ps1",
+        "-Task",
+        "clean"
+      ],
+      "problemMatcher": []
+    }
+  ]
+}

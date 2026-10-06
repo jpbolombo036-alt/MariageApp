@@ -137,7 +137,7 @@ class _AdminOrganizationMembersPageState extends ConsumerState<AdminOrganization
                   : ListView.separated(
                       padding: const EdgeInsets.all(12),
                       itemCount: _members.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
                       itemBuilder: (context, index) {
                         final member = _members[index];
                         return AppCard(

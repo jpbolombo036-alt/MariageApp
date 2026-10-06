@@ -4,10 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../auth/auth_models.dart';
 import '../auth/auth_providers.dart';
 import 'checkin_api.dart';
+import 'checkin_offline_manager.dart';
+import 'checkin_offline_models.dart';
 import 'checkin_providers.dart';
 
 /// Écran d'accueil (agent) : saisit un QR/token, consulte l'état, enregistre
 /// l'entrée dans la limite du RSVP. Permission `CHECKIN_CREATE`.
+/// Supporte le mode hors ligne via le pack préchargé.
 class CheckInScanPage extends ConsumerStatefulWidget {
   const CheckInScanPage({super.key, required this.weddingId});
 
@@ -26,6 +29,21 @@ class _CheckInScanPageState extends ConsumerState<CheckInScanPage> {
   bool _recording = false;
   String? _recordResult;
   int _attendees = 1;
+  bool _offline = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Synchronisation automatique lorsque le réseau revient.
+    ref.listen<bool>(
+      offlineCheckInManagerProvider,
+      (previous, next) {
+        if (next && previous == false) {
+          _syncOfflineScans();
+        }
+      },
+    );
+  }
 
   @override
   void dispose() {
@@ -43,10 +61,20 @@ class _CheckInScanPageState extends ConsumerState<CheckInScanPage> {
     });
     try {
       final api = ref.read(checkInApiProvider);
-      final result = await api.scan(
-        weddingId: widget.weddingId,
-        qrToken: token,
-      );
+      CheckInScan result;
+      if (_offline) {
+        final manager = ref.read(offlineCheckInManagerProvider.notifier);
+        final local = await manager.lookupLocally(token, widget.weddingId);
+        if (local == null) {
+          throw Exception('Invitation introuvable hors ligne');
+        }
+        result = local;
+      } else {
+        result = await api.scan(
+          weddingId: widget.weddingId,
+          qrToken: token,
+        );
+      }
       if (!mounted) return;
       setState(() {
         _scan = result;
@@ -65,10 +93,33 @@ class _CheckInScanPageState extends ConsumerState<CheckInScanPage> {
 
   Future<void> _recordEntry() async {
     final scan = _scan;
-    if (scan == null || !scan.canCheckIn || scan.remainingAttendees <= 0) return;
+    if (scan == null || !scan.canCheckIn || scan.remainingAttendees <= 0) {
+      return;
+    }
     setState(() => _recording = true);
     try {
       final api = ref.read(checkInApiProvider);
+      final manager = ref.read(offlineCheckInManagerProvider.notifier);
+
+      if (_offline) {
+        await manager.queueScan(
+          QueuedOfflineScan(
+            qrToken: _tokenController.text.trim(),
+            numberOfAttendees: _attendees,
+            scannedAt: DateTime.now().toIso8601String(),
+            deviceId: 'flutter-app',
+            sequence: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          ),
+          widget.weddingId,
+        );
+        if (!mounted) return;
+        setState(() {
+          _recordResult = 'Entrée enregistrée hors ligne (à synchroniser)';
+          _recording = false;
+        });
+        return;
+      }
+
       final result = await api.checkIn(
         weddingId: widget.weddingId,
         qrToken: _tokenController.text.trim(),
@@ -77,7 +128,7 @@ class _CheckInScanPageState extends ConsumerState<CheckInScanPage> {
       if (!mounted) return;
       setState(() {
         _recordResult =
-            'Entrée enregistrée — restants : ${result.remainingAttendees ?? '?'}';
+            'Entrée enregistrée — ${result.tableName != null && result.tableName!.trim().isNotEmpty ? 'table : ${result.tableName} · ' : ''}restants : ${result.remainingAttendees ?? '?'}';
         _recording = false;
       });
     } catch (_) {
@@ -87,6 +138,17 @@ class _CheckInScanPageState extends ConsumerState<CheckInScanPage> {
         _recording = false;
       });
     }
+  }
+
+  Future<void> _syncOfflineScans() async {
+    final manager = ref.read(offlineCheckInManagerProvider.notifier);
+    final result = await manager.syncQueuedScans(widget.weddingId);
+    if (!mounted) return;
+    setState(() {
+      _recordResult = result.synced
+          ? 'Synchronisation : ${result.accepted} accepté(s), ${result.rejected} rejeté(s)'
+          : 'Synchronisation impossible (hors ligne)';
+    });
   }
 
   @override
@@ -107,6 +169,55 @@ class _CheckInScanPageState extends ConsumerState<CheckInScanPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Row(
+              children: [
+                Switch(
+                  value: _offline,
+                  onChanged: (v) => setState(() => _offline = v),
+                ),
+                const SizedBox(width: 8),
+                Text(_offline ? 'Hors ligne' : 'En ligne'),
+                const Spacer(),
+                Consumer(
+                  builder: (context, ref, _) {
+                    final online = ref.watch(offlineCheckInManagerProvider);
+                    return Chip(
+                      label: Text(online ? 'Connecté' : 'Hors ligne'),
+                      visualDensity: VisualDensity.compact,
+                    );
+                  },
+                ),
+              ],
+            ),
+            if (_offline) ...[
+              const SizedBox(height: 8),
+              FilledButton(
+                onPressed: _scanning
+                    ? null
+                    : () async {
+                        final ok = await ref
+                            .read(offlineCheckInManagerProvider.notifier)
+                            .downloadOfflinePack(widget.weddingId);
+                        if (!mounted) return;
+                        setState(() {
+                          _recordResult = ok
+                              ? 'Pack hors ligne mis à jour'
+                              : 'Échec du téléchargement du pack';
+                        });
+                      },
+                child: const Text('Télécharger le pack hors ligne'),
+              ),
+              const SizedBox(height: 8),
+              FilledButton(
+                onPressed: _recording
+                    ? null
+                    : () async {
+                        await _syncOfflineScans();
+                      },
+                child: const Text('Synchroniser les scans'),
+              ),
+            ],
+            const SizedBox(height: 16),
             TextFormField(
               controller: _tokenController,
               decoration: const InputDecoration(
@@ -117,7 +228,7 @@ class _CheckInScanPageState extends ConsumerState<CheckInScanPage> {
             const SizedBox(height: 12),
             FilledButton(
               onPressed: _scanning ? null : _doScan,
-              child: const Text('Scanner / Vérifier'),
+              child: Text(_offline ? 'Rechercher hors ligne' : 'Scanner / Vérifier'),
             ),
             const SizedBox(height: 20),
             _buildScanResult(),
@@ -144,6 +255,11 @@ class _CheckInScanPageState extends ConsumerState<CheckInScanPage> {
       children: [
         Text('Invité : ${scan.guestName}'),
         Text('Événement : ${scan.weddingDisplayName}'),
+        if (scan.tableName != null && scan.tableName!.trim().isNotEmpty)
+          Text(
+            'Table : ${scan.tableName}',
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
         Text('RSVP : ${scan.rsvpStatus ?? '—'}'),
         Text(
           'Attendus : ${scan.expectedAttendees} · Entrés : ${scan.checkedInAttendees}'
@@ -155,10 +271,15 @@ class _CheckInScanPageState extends ConsumerState<CheckInScanPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               IconButton(
-                onPressed: _attendees > 1 ? () => setState(() => _attendees--) : null,
+                onPressed: _attendees > 1
+                    ? () => setState(() => _attendees--)
+                    : null,
                 icon: const Icon(Icons.remove_circle_outline),
               ),
-              Text('$_attendees', style: Theme.of(context).textTheme.headlineSmall),
+              Text(
+                '$_attendees',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
               IconButton(
                 onPressed: _attendees < scan.remainingAttendees
                     ? () => setState(() => _attendees++)
@@ -176,8 +297,7 @@ class _CheckInScanPageState extends ConsumerState<CheckInScanPage> {
                   : "Enregistrer l'entrée",
             ),
           ),
-        ]
-        else
+        ] else
           Text(
             'Impossible d’enregistrer (RSVP absent, annulé ou complet)',
             style: TextStyle(color: Colors.orange),

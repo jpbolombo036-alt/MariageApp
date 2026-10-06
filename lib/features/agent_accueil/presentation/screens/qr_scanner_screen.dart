@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../../src/checkin/checkin_api.dart';
+import '../../../../src/checkin/checkin_offline_manager.dart';
 import '../../../../src/checkin/checkin_providers.dart';
 import '../../../../src/theme/app_colors.dart';
 import 'scan_result_screen.dart';
@@ -26,6 +27,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
   bool _lookingUp = false;
   bool _cameraOn = false;
   String? _error;
+  bool _offline = false;
 
   @override
   void dispose() {
@@ -64,19 +66,30 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
     _lookingUp = true;
     setState(() => _error = null);
     try {
-      final scan = await ref.read(checkInApiProvider).scan(
-            weddingId: widget.weddingId,
-            qrToken: token,
-          );
+      final CheckInScan scan;
+      if (_offline) {
+        final manager = ref.read(offlineCheckInManagerProvider.notifier);
+        final local = await manager.lookupLocally(token, widget.weddingId);
+        if (local == null) {
+          throw Exception('Invitation introuvable hors ligne');
+        }
+        scan = local;
+      } else {
+        scan = await ref.read(checkInApiProvider).scan(
+              weddingId: widget.weddingId,
+              qrToken: token,
+            );
+      }
       if (!mounted) return;
       setState(() => _lookingUp = false);
       await Navigator.of(context).push<bool>(
         MaterialPageRoute(
-            builder: (_) => ScanResultScreen(
-              scan: scan,
-              qrToken: token,
-              weddingId: widget.weddingId,
-            ),
+          builder: (_) => ScanResultScreen(
+            scan: scan,
+            qrToken: token,
+            weddingId: widget.weddingId,
+            offline: _offline,
+          ),
         ),
       );
     } catch (e) {
@@ -97,6 +110,9 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
     }
     if (lower.contains('cap') || lower.contains('plein') || lower.contains('complet')) {
       return 'Toutes les personnes prévues ont déjà été enregistrées';
+    }
+    if (lower.contains('hors ligne') || lower.contains('introuvable')) {
+      return 'Invitation introuvable hors ligne : pack non chargé ?';
     }
     return 'QR code invalide';
   }
@@ -233,6 +249,14 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
             onPressed: _lookingUp ? null : () => _lookup(_codeController.text),
             icon: const Icon(Icons.check),
             label: const Text('Vérifier le code'),
+          ),
+          const SizedBox(height: 8),
+          SwitchListTile(
+            value: _offline,
+            onChanged: (v) => setState(() => _offline = v),
+            title: const Text('Mode hors ligne'),
+            subtitle: Text(_offline ? 'Pack local uniquement' : 'Connexion requise'),
+            activeThumbColor: AppColors.agentGold,
           ),
         ],
       ),

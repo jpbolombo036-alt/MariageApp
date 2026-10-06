@@ -20,13 +20,13 @@ class WeddingTable {
   final int remainingCapacity;
 
   factory WeddingTable.fromJson(Map<String, dynamic> json) => WeddingTable(
-        id: (json['id'] as num).toInt(),
-        name: json['name'] as String? ?? '',
-        description: json['description'] as String?,
-        capacity: (json['capacity'] as num?)?.toInt() ?? 0,
-        assignedCount: (json['assignedCount'] as num?)?.toInt() ?? 0,
-        remainingCapacity: (json['remainingCapacity'] as num?)?.toInt() ?? 0,
-      );
+    id: (json['id'] as num).toInt(),
+    name: json['name'] as String? ?? '',
+    description: json['description'] as String?,
+    capacity: (json['capacity'] as num?)?.toInt() ?? 0,
+    assignedCount: (json['assignedCount'] as num?)?.toInt() ?? 0,
+    remainingCapacity: (json['remainingCapacity'] as num?)?.toInt() ?? 0,
+  );
 }
 
 /// Requête de création d'une table (`CreateWeddingTableRequest`).
@@ -42,10 +42,10 @@ class CreateWeddingTableRequest {
   final String? description;
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'capacity': capacity,
-        if (description != null) 'description': description,
-      };
+    'name': name,
+    'capacity': capacity,
+    if (description != null) 'description': description,
+  };
 }
 
 /// Résultat d'affectation / déplacement / retrait (`TableAssignmentResponse`).
@@ -56,6 +56,7 @@ class TableAssignment {
     required this.guestName,
     required this.tableId,
     required this.tableName,
+    this.companions = 0,
     this.assignedAt,
   });
 
@@ -64,14 +65,17 @@ class TableAssignment {
   final String guestName;
   final int tableId;
   final String tableName;
+  final int companions;
   final String? assignedAt;
 
-  factory TableAssignment.fromJson(Map<String, dynamic> json) => TableAssignment(
+  factory TableAssignment.fromJson(Map<String, dynamic> json) =>
+      TableAssignment(
         assignmentId: (json['assignmentId'] as num?)?.toInt() ?? 0,
         guestId: (json['guestId'] as num?)?.toInt() ?? 0,
         guestName: json['guestName'] as String? ?? '',
         tableId: (json['tableId'] as num?)?.toInt() ?? 0,
         tableName: json['tableName'] as String? ?? '',
+        companions: (json['companions'] as num?)?.toInt() ?? 0,
         assignedAt: json['assignedAt'] as String?,
       );
 }
@@ -82,15 +86,20 @@ class TableApi {
 
   final ApiClient api;
 
-  String _tablesPath(int weddingId) => '${ApiConfig.eventsPath}/$weddingId/tables';
+  String _tablesPath(int weddingId) =>
+      '${ApiConfig.eventsPath}/$weddingId/tables';
   String _assignmentsPath(int weddingId) =>
       '${ApiConfig.eventsPath}/$weddingId/assignments';
 
   /// Liste des tables d'un événement (`GET .../tables`).
   Future<List<WeddingTable>> list(int weddingId) async {
     final raw = await api.getList(_tablesPath(weddingId));
-    return raw.whereType<Map<String, dynamic>>().map((e) => WeddingTable.fromJson(e)).toList();
+    return raw
+        .whereType<Map<String, dynamic>>()
+        .map((e) => WeddingTable.fromJson(e))
+        .toList();
   }
+
   /// Toutes les affectations d'un événement (`GET .../assignments`).
   ///
   /// Un seul appel pour tout l'événement : l'écran « Invités » affiche ainsi
@@ -103,18 +112,25 @@ class TableApi {
         .toList();
   }
 
-
   /// Création d'une table (`POST .../tables`).
-  Future<WeddingTable> create(int weddingId, CreateWeddingTableRequest request) async {
+  Future<WeddingTable> create(
+    int weddingId,
+    CreateWeddingTableRequest request,
+  ) async {
     final json = await api.postJson(_tablesPath(weddingId), request.toJson());
     return WeddingTable.fromJson(json);
   }
 
   /// Modification d'une table (`PUT .../tables/{tableId}`).
   Future<WeddingTable> update(
-      int weddingId, int tableId, CreateWeddingTableRequest request) async {
-    final json =
-        await api.putJson('${_tablesPath(weddingId)}/$tableId', request.toJson());
+    int weddingId,
+    int tableId,
+    CreateWeddingTableRequest request,
+  ) async {
+    final json = await api.putJson(
+      '${_tablesPath(weddingId)}/$tableId',
+      request.toJson(),
+    );
     return WeddingTable.fromJson(json);
   }
 
@@ -145,7 +161,10 @@ class TableApi {
   }
 
   /// Retirer un invité d'une table (`DELETE .../assignments/{assignmentId}`).
-  Future<void> remove({required int weddingId, required int assignmentId}) async {
+  Future<void> remove({
+    required int weddingId,
+    required int assignmentId,
+  }) async {
     await api.deleteRequest('${_assignmentsPath(weddingId)}/$assignmentId');
   }
 

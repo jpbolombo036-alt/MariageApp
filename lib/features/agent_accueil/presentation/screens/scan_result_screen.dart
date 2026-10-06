@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../src/checkin/checkin_api.dart';
+import '../../../../src/checkin/checkin_offline_manager.dart';
+import '../../../../src/checkin/checkin_offline_models.dart';
 import '../../../../src/checkin/checkin_providers.dart';
 import '../../../../src/theme/app_colors.dart';
 
@@ -12,11 +14,13 @@ class ScanResultScreen extends ConsumerStatefulWidget {
     required this.scan,
     required this.qrToken,
     required this.weddingId,
+    this.offline = false,
   });
 
   final CheckInScan scan;
   final String qrToken;
   final int weddingId;
+  final bool offline;
 
   @override
   ConsumerState<ScanResultScreen> createState() => _ScanResultScreenState();
@@ -41,6 +45,7 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
       body: _result != null ? _buildSuccess(p) : _buildScanInfo(p),
     );
   }
+
   Widget _buildScanInfo(AgentPalette p) {
     final s = widget.scan;
     final success = s.canCheckIn && s.remainingAttendees > 0;
@@ -76,10 +81,19 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
               Text(
                 s.guestName,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: p.textPrimary, fontSize: 22, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: p.textPrimary,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const SizedBox(height: 16),
-              _infoRow('Invitation : ${success ? "Confirmée" : _statusLabel(s)}', p),
+              _infoRow(
+                'Invitation : ${success ? "Confirmée" : _statusLabel(s)}',
+                p,
+              ),
+              if (s.tableName != null && s.tableName!.trim().isNotEmpty)
+                _infoRow('Table : ${s.tableName}', p),
               _infoRow('Personnes attendues : ${s.expectedAttendees}', p),
               _infoRow('Déjà enregistrées : ${s.checkedInAttendees}', p),
               _infoRow('Restantes : ${s.remainingAttendees}', p),
@@ -98,7 +112,11 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
         if (success) ...[
           Text(
             'Nombre de personnes à enregistrer',
-            style: TextStyle(color: p.textSecondary, fontSize: 15, fontWeight: FontWeight.w500),
+            style: TextStyle(
+              color: p.textSecondary,
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),
@@ -106,8 +124,14 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               IconButton(
-                onPressed: _attendees > 1 ? () => setState(() => _attendees--) : null,
-                icon: Icon(Icons.remove_circle_outline, size: 34, color: p.textSecondary),
+                onPressed: _attendees > 1
+                    ? () => setState(() => _attendees--)
+                    : null,
+                icon: Icon(
+                  Icons.remove_circle_outline,
+                  size: 34,
+                  color: p.textSecondary,
+                ),
               ),
               Container(
                 width: 64,
@@ -120,12 +144,22 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
                 ),
                 child: Text(
                   '$_attendees',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: p.textPrimary),
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: p.textPrimary,
+                  ),
                 ),
               ),
               IconButton(
-                onPressed: _attendees < max ? () => setState(() => _attendees++) : null,
-                icon: Icon(Icons.add_circle_outline, size: 34, color: p.textSecondary),
+                onPressed: _attendees < max
+                    ? () => setState(() => _attendees++)
+                    : null,
+                icon: Icon(
+                  Icons.add_circle_outline,
+                  size: 34,
+                  color: p.textSecondary,
+                ),
               ),
             ],
           ),
@@ -134,20 +168,33 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.success,
               minimumSize: const Size.fromHeight(54),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
             onPressed: _recording ? null : _record,
             icon: _recording
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
                 : const Icon(Icons.person_add_alt),
-            label: Text(_recording ? 'Enregistrement...' : '+ Enregistrer l\u2019entrée'),
+            label: Text(
+              _recording ? 'Enregistrement...' : '+ Enregistrer l\u2019entrée',
+            ),
           ),
         ] else ...[
           FilledButton.icon(
             style: FilledButton.styleFrom(
               backgroundColor: p.danger,
               minimumSize: const Size.fromHeight(54),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
             onPressed: () => Navigator.of(context).pop(false),
             icon: const Icon(Icons.refresh),
@@ -157,6 +204,7 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
       ],
     );
   }
+
   Widget _buildSuccess(AgentPalette p) {
     final r = _result!;
     return ListView(
@@ -175,15 +223,28 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
               const SizedBox(height: 12),
               Text(
                 'ENTRÉE ENREGISTRÉE',
-                style: TextStyle(color: p.textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: p.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 r.guestName ?? '',
-                style: TextStyle(color: p.textPrimary, fontSize: 22, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: p.textPrimary,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const SizedBox(height: 16),
-              _infoRow('Enregistrées / attendues : ${r.checkedInAttendees} / ${r.expectedAttendees}', p),
+              _infoRow(
+                'Enregistrées / attendues : ${r.checkedInAttendees} / ${r.expectedAttendees}',
+                p,
+              ),
+              if (r.tableName != null && r.tableName!.trim().isNotEmpty)
+                _infoRow('Table : ${r.tableName}', p),
               _infoRow('Restantes : ${r.remainingAttendees}', p),
             ],
           ),
@@ -192,7 +253,9 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
         OutlinedButton(
           style: OutlinedButton.styleFrom(
             minimumSize: const Size.fromHeight(54),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
           ),
           onPressed: () => Navigator.of(context).pop(true),
           child: const Text('Terminer'),
@@ -207,7 +270,33 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
       _error = null;
     });
     try {
-      final result = await ref.read(checkInApiProvider).checkIn(
+      if (widget.offline) {
+        final manager = ref.read(offlineCheckInManagerProvider.notifier);
+        await manager.queueScan(
+          QueuedOfflineScan(
+            qrToken: widget.qrToken,
+            numberOfAttendees: _attendees,
+            scannedAt: DateTime.now().toIso8601String(),
+            deviceId: 'flutter-app',
+            sequence: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          ),
+          widget.weddingId,
+        );
+        if (!mounted) return;
+        setState(() {
+          _recording = false;
+          _result = CheckInResult(
+            guestName: widget.scan.guestName,
+            checkedInAttendees: widget.scan.checkedInAttendees + _attendees,
+            remainingAttendees: widget.scan.remainingAttendees - _attendees,
+            tableName: widget.scan.tableName,
+          );
+        });
+        return;
+      }
+      final result = await ref
+          .read(checkInApiProvider)
+          .checkIn(
             weddingId: widget.weddingId,
             qrToken: widget.qrToken,
             numberOfAttendees: _attendees,

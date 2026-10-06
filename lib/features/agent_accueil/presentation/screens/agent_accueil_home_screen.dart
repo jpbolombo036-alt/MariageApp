@@ -1,7 +1,9 @@
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../../../src/auth/auth_providers.dart';
 import '../../../../src/checkin/checkin_api.dart';
@@ -17,7 +19,6 @@ import '../widgets/agent_header.dart';
 import '../widgets/attendance_stat_card.dart';
 import '../widgets/event_card.dart';
 import '../widgets/guest_search_bar.dart';
-import '../widgets/recent_activity_section.dart';
 import '../widgets/scanner_action_card.dart';
 import 'agent_attendance_screen.dart';
 import 'agent_profile_screen.dart';
@@ -33,13 +34,25 @@ class AgentAccueilHomeScreen extends ConsumerStatefulWidget {
       _AgentAccueilHomeScreenState();
 }
 
-class _AgentAccueilHomeScreenState extends ConsumerState<AgentAccueilHomeScreen> {
+class _AgentAccueilHomeScreenState
+    extends ConsumerState<AgentAccueilHomeScreen> {
   AgentTab _tab = AgentTab.home;
 
   List<Wedding> _weddings = const [];
   Dashboard? _dashboard;
-  List<ActivityItem> _activity = const [];
   bool _loading = true;
+
+  /// Message affiché quand les statistiques n'ont pas pu être chargées.
+  String? _statsError;
+
+  /// Personnes présentes calculées via le module check-in, utilisé comme repli
+  /// lorsque le tableau de bord est inaccessible (AGENT_ACCUEIL n'a pas la
+  /// permission `DASHBOARD_VIEW`).
+  int? _presentFallback;
+
+  /// Dernier weddingId utilisé avec succès pour un scan — persisté pour permettre
+  /// de scanner hors ligne même si la liste des événements n'est pas chargeable.
+  int? _lastScannedWeddingId;
 
   @override
   void initState() {
@@ -48,32 +61,96 @@ class _AgentAccueilHomeScreenState extends ConsumerState<AgentAccueilHomeScreen>
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _statsError = null;
+    });
+
+    final storage = const FlutterSecureStorage();
+    _lastScannedWeddingId = int.tryParse((await storage.read(key: 'last_wedding_id')) ?? '');
+
+    // 1) Événements. Chargés séparément pour être **conservés** même si la
+    //    suite échoue : auparavant, une erreur du tableau de bord faisait
+    //    sauter le setState final et laissait `_weddings` vide (écran vide).
+    List<Wedding> weddings;
     try {
-      final weddings = await ref.read(weddingApiProvider).list(size: 25);
-      Dashboard? dash;
-      List<ActivityItem> activity = const [];
+      weddings = await ref.read(weddingApiProvider).list(size: 25);
       if (weddings.isNotEmpty) {
-        dash = await ref.read(dashboardApiProvider).getForWedding(weddings.first.id);
-        try {
-          activity = await ref.read(dashboardApiProvider).recentActivity(weddings.first.id);
-        } catch (_) {}
+        await storage.write(key: 'last_wedding_id', value: weddings.first.id.toString());
       }
-      if (!mounted) return;
-      setState(() {
-        _weddings = weddings;
-        _dashboard = dash;
-        _activity = activity;
-        _loading = false;
-      });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _loading = false);
+      setState(() {
+        _weddings = const [];
+        _dashboard = null;
+        _presentFallback = null;
+        _statsError = 'Impossible de charger les événements.';
+        _loading = false;
+      });
+      return;
     }
+
+    // 2) Statistiques. `GET /api/events/{id}/dashboard` exige la permission
+    //    DASHBOARD_VIEW, absente du rôle AGENT_ACCUEIL → 403 possible. On ne
+    //    fait pas échouer l'écran et on alimente les présences par un repli
+    //    autorisé pour l'agent (`GET /api/checkins/event/{id}`).
+    Dashboard? dash;
+    int? presentFallback;
+    String? statsError;
+
+    if (weddings.isNotEmpty) {
+      final weddingId = weddings.first.id;
+      try {
+        dash = await ref.read(dashboardApiProvider).getForWedding(weddingId);
+      } catch (error) {
+        try {
+          final present = await ref
+              .read(checkInApiProvider)
+              .listPresent(weddingId);
+          presentFallback = present.fold<int>(
+            0,
+            (sum, person) => sum + person.numberOfAttendees,
+          );
+          statsError = _statsMessage(error, hasPresentFallback: true);
+        } catch (_) {
+          statsError = _statsMessage(error, hasPresentFallback: false);
+        }
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _weddings = weddings;
+      _dashboard = dash;
+      _presentFallback = presentFallback;
+      _statsError = statsError;
+      _loading = false;
+    });
+  }
+
+  /// Message lisible selon la cause de l'échec du tableau de bord.
+  String _statsMessage(Object error, {required bool hasPresentFallback}) {
+    final denied = error is DioException && error.response?.statusCode == 403;
+    if (denied) {
+      return hasPresentFallback
+          ? 'Invités attendus indisponibles : votre rôle n’a pas accès au '
+              'tableau de bord (DASHBOARD_VIEW).'
+          : 'Statistiques indisponibles : votre rôle n’a pas accès au tableau '
+              'de bord (DASHBOARD_VIEW).';
+    }
+    return hasPresentFallback
+        ? 'Invités attendus indisponibles : tableau de bord injoignable.'
+        : 'Statistiques indisponibles pour le moment.';
   }
 
   void _openScanner() {
-    if (_weddings.isEmpty) {
+    int? weddingId;
+    if (_weddings.isNotEmpty) {
+      weddingId = _weddings.first.id;
+    } else {
+      weddingId = _lastScannedWeddingId;
+    }
+    if (weddingId == null || weddingId == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Aucun événement assigné pour le scan')),
       );
@@ -81,7 +158,7 @@ class _AgentAccueilHomeScreenState extends ConsumerState<AgentAccueilHomeScreen>
     }
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => QrScannerScreen(weddingId: _weddings.first.id),
+        builder: (_) => QrScannerScreen(weddingId: weddingId!),
       ),
     );
   }
@@ -93,6 +170,7 @@ class _AgentAccueilHomeScreenState extends ConsumerState<AgentAccueilHomeScreen>
     }
     setState(() => _tab = tab);
   }
+
   @override
   Widget build(BuildContext context) {
     final p = AgentPalette.of(context);
@@ -121,14 +199,22 @@ class _AgentAccueilHomeScreenState extends ConsumerState<AgentAccueilHomeScreen>
                 ],
               ),
       ),
-      bottomNavigationBar: AgentBottomNavigation(current: _tab, onSelect: _onTab),
+      bottomNavigationBar: AgentBottomNavigation(
+        current: _tab,
+        onSelect: _onTab,
+      ),
     );
   }
 
   Widget _buildHome(String firstName, AgentPalette p) {
     final wedding = _weddings.isNotEmpty ? _weddings.first : null;
-    final guests = _dashboard?.guests;
     final attendance = _dashboard?.attendance;
+
+    // « Invités attendus » = personnes prévues par les RSVP (`expected`), comme
+    // dans l'onglet Présences. Repli sur le total d'invités, sinon `null` afin
+    // d'afficher « — » plutôt qu'un « 0 » trompeur.
+    final expectedAttendees = attendance?.expected ?? _dashboard?.guests.total;
+    final presentAttendees = attendance?.checkedIn ?? _presentFallback;
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -153,28 +239,38 @@ class _AgentAccueilHomeScreenState extends ConsumerState<AgentAccueilHomeScreen>
           const SizedBox(height: 20),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: ScannerActionCard(
-              onTap: _openScanner,
-            ),
+            child: ScannerActionCard(onTap: _openScanner),
           ),
           const SizedBox(height: 20),
+          if (_statsError != null) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: _StatsWarning(message: _statsError!),
+            ),
+            const SizedBox(height: 16),
+          ],
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               children: [
                 AttendanceStatCard(
                   icon: Icons.group_outlined,
-                  value: '${guests?.total ?? 0}',
+                  value: expectedAttendees == null ? '—' : '$expectedAttendees',
                   label: 'Invités attendus',
                 ),
                 const SizedBox(width: 14),
                 AttendanceStatCard(
                   icon: Icons.check_circle_outline,
-                  value: '${attendance?.checkedIn ?? 0}',
+                  value: presentAttendees == null ? '—' : '$presentAttendees',
                   label: 'Invités présents',
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: _buildAttendanceOverview(attendance, p),
           ),
           const SizedBox(height: 20),
           Padding(
@@ -184,24 +280,165 @@ class _AgentAccueilHomeScreenState extends ConsumerState<AgentAccueilHomeScreen>
             ),
           ),
           const SizedBox(height: 24),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: RecentActivitySection(
-              title: 'Activité récente',
-              onSeeAll: () => setState(() => _tab = AgentTab.attendance),
-              items: [
-                for (final item in _activity)
-                  RecentActivityItem(
-                    guestName: (item.details != null && item.details!.isNotEmpty)
-                        ? item.details!
-                        : item.action,
-                    subtitle: item.action,
-                    time: item.performedAt,
-                  ),
-              ],
+        ],
+      ),
+    );
+  }
+}
+
+Widget _buildAttendanceOverview(AttendanceStats? attendance, AgentPalette p) {
+  // Le tableau de bord peut être refusé au rôle AGENT_ACCUEIL : on affiche une
+  // information neutre au lieu d'un « 0 sur 0 · 0% » trompeur.
+  if (attendance == null) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: p.border),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.insights_outlined, color: p.textSecondary, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Progression des arrivées indisponible pour votre rôle.',
+              style: TextStyle(color: p.textSecondary, fontSize: 13),
             ),
           ),
-          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+  final expected = attendance.expected;
+  final checkedIn = attendance.checkedIn;
+  final rate = expected == 0
+      ? 0.0
+      : (checkedIn / expected).clamp(0.0, 1.0).toDouble();
+  return Container(
+    padding: const EdgeInsets.all(18),
+    decoration: BoxDecoration(
+      color: p.surface,
+      borderRadius: BorderRadius.circular(22),
+      border: Border.all(color: p.border),
+      boxShadow: p.cardShadow,
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: p.primary.withValues(alpha: 0.10),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.insights_outlined, color: p.primary, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Progression des arrivées',
+                    style: TextStyle(
+                      color: p.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$checkedIn sur $expected invités enregistrés',
+                    style: TextStyle(color: p.textSecondary, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              '${(rate * 100).round()}%',
+              style: TextStyle(
+                color: p.primary,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: LinearProgressIndicator(
+            value: rate,
+            minHeight: 9,
+            backgroundColor: p.border,
+            color: p.primary,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Présents : $checkedIn',
+              style: TextStyle(
+                color: AppColors.success,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            Text(
+              'Restants : ${attendance.remaining}',
+              style: TextStyle(
+                color: p.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+/// Bandeau d'information : statistiques partiellement indisponibles.
+class _StatsWarning extends StatelessWidget {
+  const _StatsWarning({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AgentPalette.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: p.border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline, color: p.textSecondary, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                color: p.textSecondary,
+                fontSize: 12,
+                height: 1.35,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -234,7 +471,9 @@ class _GuestsPlaceholderState extends ConsumerState<_GuestsPlaceholder> {
     if (widget.weddingId == 0 || q.isEmpty) return;
     setState(() => _searching = true);
     try {
-      final hits = await ref.read(checkInApiProvider).searchGuests(widget.weddingId, q);
+      final hits = await ref
+          .read(checkInApiProvider)
+          .searchGuests(widget.weddingId, q);
       if (!mounted) return;
       setState(() {
         _hits = hits;
@@ -257,9 +496,9 @@ class _GuestsPlaceholderState extends ConsumerState<_GuestsPlaceholder> {
       );
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Carte indisponible')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Carte indisponible')));
     }
   }
 
@@ -272,11 +511,18 @@ class _GuestsPlaceholderState extends ConsumerState<_GuestsPlaceholder> {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
           child: Row(
             children: [
-              IconButton(onPressed: widget.onBack, icon: Icon(Icons.arrow_back, color: p.textPrimary)),
+              IconButton(
+                onPressed: widget.onBack,
+                icon: Icon(Icons.arrow_back, color: p.textPrimary),
+              ),
               Expanded(
                 child: Text(
                   'Recherche invité',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: p.textPrimary),
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: p.textPrimary,
+                  ),
                 ),
               ),
             ],
@@ -290,9 +536,15 @@ class _GuestsPlaceholderState extends ConsumerState<_GuestsPlaceholder> {
             decoration: InputDecoration(
               hintText: 'Nom ou téléphone',
               prefixIcon: Icon(Icons.search, color: p.textSecondary),
-              border: OutlineInputBorder(borderSide: BorderSide(color: p.border)),
-              enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: p.border)),
-              focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: p.primary)),
+              border: OutlineInputBorder(
+                borderSide: BorderSide(color: p.border),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: p.border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: p.primary),
+              ),
             ),
             onSubmitted: _search,
           ),
@@ -303,7 +555,10 @@ class _GuestsPlaceholderState extends ConsumerState<_GuestsPlaceholder> {
             children: [
               for (final hit in _hits)
                 ListTile(
-                  title: Text(hit.guestName, style: TextStyle(color: p.textPrimary)),
+                  title: Text(
+                    hit.guestName,
+                    style: TextStyle(color: p.textPrimary),
+                  ),
                   subtitle: Text(
                     [
                       if (hit.tableName != null) hit.tableName!,
@@ -315,7 +570,10 @@ class _GuestsPlaceholderState extends ConsumerState<_GuestsPlaceholder> {
                       ? null
                       : IconButton(
                           tooltip: 'Carte',
-                          icon: Icon(Icons.image_outlined, color: p.textSecondary),
+                          icon: Icon(
+                            Icons.image_outlined,
+                            color: p.textSecondary,
+                          ),
                           onPressed: () => _openCard(hit.publicToken!),
                         ),
                 ),

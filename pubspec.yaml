@@ -63,17 +63,24 @@ dependencies:
   flutter_riverpod: ^2.5.1
   riverpod: ^2.5.1
 
-  # --- Stockage sécurisé des tokens (Keychain/Keystore) ---
-  flutter_secure_storage: ^11.0.0
-
   # --- Métadonnées / annotations communes ---
   meta: ^1.16.0
   collection: ^1.16.0
+
+  # --- Polices Google ---
   google_fonts: ^8.2.1
+
+  # --- Scanner QR ---
   mobile_scanner: ^7.4.0
 
   # --- Sélection d'images (avatar, photos événement) ---
   image_picker: ^1.1.2
+
+  # --- Stockage local hors ligne (pack check-in + queue) ---
+  flutter_secure_storage: ^11.0.0
+
+  # --- Détection du réseau (online/offline) ---
+  connectivity_plus: ^6.0.0
 
 dev_dependencies:
   flutter_test:

@@ -215,6 +215,20 @@ class AdminApi {
     await api.deleteRequest('${ApiConfig.usersPath}/$userId');
   }
 
+  /// Upload de la photo de profil (`PUT /api/users/me/avatar`).
+  Future<void> uploadAvatar(List<int> bytes, String contentType) async {
+    await api.putMultipart(
+      '${ApiConfig.usersPath}/me/avatar',
+      bytes: bytes,
+      contentType: contentType,
+    );
+  }
+
+  /// Suppression de la photo de profil (`DELETE /api/users/me/avatar`).
+  Future<void> deleteAvatar() async {
+    await api.deleteRequest('${ApiConfig.usersPath}/me/avatar');
+  }
+
   Future<Map<String, dynamic>> updateProfile({
     required String firstName,
     required String lastName,
@@ -227,14 +241,6 @@ class AdminApi {
         'email': email,
         if (phone != null && phone.isNotEmpty) 'phone': phone,
       });
-  }
-
-  Future<void> uploadAvatar(List<int> bytes, String contentType) async {
-    await api.postMultipart('${ApiConfig.usersPath}/me/avatar', bytes: bytes, contentType: contentType);
-  }
-
-  Future<void> deleteAvatar() async {
-    await api.deleteRequest('${ApiConfig.usersPath}/me/avatar');
   }
 
   Future<bool> isEventCreationEnabled() async {
@@ -267,8 +273,8 @@ class AdminApi {
     return api.putJson(
       '/api/admin/organizations/$organizationId/settings',
       {
-        if (eventCreationEnabled != null) 'eventCreationEnabled': eventCreationEnabled,
-        if (whatsappEnabled != null) 'whatsappEnabled': whatsappEnabled,
+        'eventCreationEnabled': ?eventCreationEnabled,
+        'whatsappEnabled': ?whatsappEnabled,
       },
     );
   }

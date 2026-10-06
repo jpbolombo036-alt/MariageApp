@@ -1,5 +1,6 @@
 import '../api/api_client.dart';
 import '../api/api_config.dart';
+import 'checkin_offline_models.dart';
 
 /// Session publique.
 class PublicSessionItem {
@@ -283,6 +284,114 @@ class CheckInApi {
         .map(CheckInSearchHit.fromJson)
         .toList();
   }
+
+  /// Téléchargement du pack hors ligne (`GET /api/checkins/event/{eventId}/offline-pack`).
+  Future<OfflinePackResponse> offlinePack(int eventId) async {
+    final json = await api.getJson(
+      '${ApiConfig.checkinsPath}/event/$eventId/offline-pack',
+    );
+    return OfflinePackResponse.fromJson(json);
+  }
+
+  /// Synchronisation des scans hors ligne (`POST /api/checkins/sync`).
+  Future<SyncCheckInResponse> syncOfflineScans({
+    required int eventId,
+    required List<OfflineScanItem> scans,
+  }) async {
+    final json = await api.postJson(
+      '${ApiConfig.checkinsPath}/sync',
+      {
+        'eventId': eventId,
+        'scans': scans.map((s) => s.toJson()).toList(),
+      },
+    );
+    return SyncCheckInResponse.fromJson(json);
+  }
+}
+
+/// Item de scan hors ligne.
+class OfflineScanItem {
+  OfflineScanItem({
+    required this.qrToken,
+    required this.numberOfAttendees,
+    this.scannedAt,
+    this.deviceId,
+    this.sequence,
+  });
+
+  final String qrToken;
+  final int numberOfAttendees;
+  final String? scannedAt;
+  final String? deviceId;
+  final int? sequence;
+
+  factory OfflineScanItem.fromJson(Map<String, dynamic> json) => OfflineScanItem(
+        qrToken: json['qrToken'] as String? ?? '',
+        numberOfAttendees: (json['numberOfAttendees'] as num?)?.toInt() ?? 0,
+        scannedAt: json['scannedAt'] as String?,
+        deviceId: json['deviceId'] as String?,
+        sequence: (json['sequence'] as num?)?.toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'qrToken': qrToken,
+        'numberOfAttendees': numberOfAttendees,
+        'scannedAt': scannedAt,
+        'deviceId': deviceId,
+        'sequence': sequence,
+      };
+}
+
+class SyncCheckInResponse {
+  SyncCheckInResponse({
+    required this.processed,
+    required this.accepted,
+    required this.rejected,
+    required this.results,
+  });
+
+  final int processed;
+  final int accepted;
+  final int rejected;
+  final List<SyncCheckInResult> results;
+
+  factory SyncCheckInResponse.fromJson(Map<String, dynamic> json) =>
+      SyncCheckInResponse(
+        processed: (json['processed'] as num?)?.toInt() ?? 0,
+        accepted: (json['accepted'] as num?)?.toInt() ?? 0,
+        rejected: (json['rejected'] as num?)?.toInt() ?? 0,
+        results: (json['results'] as List<dynamic>? ?? const [])
+            .map((e) => SyncCheckInResult.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
+class SyncCheckInResult {
+  SyncCheckInResult({
+    this.qrToken,
+    this.status,
+    this.reason,
+    this.checkInId,
+    this.totalAttendees,
+    this.remainingAttendees,
+  });
+
+  final String? qrToken;
+  final String? status;
+  final String? reason;
+  final int? checkInId;
+  final int? totalAttendees;
+  final int? remainingAttendees;
+
+  factory SyncCheckInResult.fromJson(Map<String, dynamic> json) =>
+      SyncCheckInResult(
+        qrToken: json['qrToken'] as String?,
+        status: json['status'] as String?,
+        reason: json['reason'] as String?,
+        checkInId: (json['checkInId'] as num?)?.toInt(),
+        totalAttendees: (json['totalAttendees'] as num?)?.toInt(),
+        remainingAttendees: (json['remainingAttendees'] as num?)?.toInt(),
+      );
 }
 
 /// Invité présent dans la salle.

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'src/api/api_client.dart';
 import 'src/auth/auth_providers.dart';
 import 'src/auth/login_page.dart';
 import 'src/auth/splash_page.dart';
@@ -10,11 +11,24 @@ import 'src/navigation/rsvp_link.dart';
 import 'src/theme/app_theme.dart';
 import 'src/theme/theme_controller.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   runApp(
-    const ProviderScope(
-      child: EventiaEasyApp(),
+    ProviderScope(
+      overrides: [
+        apiClientProvider.overrideWith((ref) {
+          final tokenStore = ref.watch(secureTokenStoreProvider);
+          final client = ApiClient(
+            tokenStore: tokenStore,
+            onSessionExpired: () async {
+              // Session expired handling
+            },
+          );
+          return client;
+        }),
+      ],
+      child: const EventiaEasyApp(),
     ),
   );
 }
