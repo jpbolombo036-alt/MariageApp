@@ -292,6 +292,14 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
             tableName: widget.scan.tableName,
           );
         });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Entrée enregistrée hors ligne (à synchroniser)'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+        }
         return;
       }
       final result = await ref
@@ -306,12 +314,28 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
         _result = result;
         _recording = false;
       });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Entrée enregistrée pour ${result.guestName ?? 'invité'}'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _recording = false;
         _error = 'Enregistrement refusé (capacité ou état invalide)';
       });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_error!),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
     }
   }
 
