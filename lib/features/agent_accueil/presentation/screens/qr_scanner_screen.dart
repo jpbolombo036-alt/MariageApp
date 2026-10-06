@@ -28,6 +28,8 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
   bool _cameraOn = false;
   String? _error;
   bool _offline = false;
+  bool _packLoading = false;
+  String? _packMessage;
 
   @override
   void dispose() {
@@ -97,6 +99,31 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
       setState(() {
         _lookingUp = false;
         _error = _translateError(e);
+      });
+    }
+  }
+
+  Future<void> _downloadPack() async {
+    setState(() {
+      _packLoading = true;
+      _packMessage = null;
+    });
+    try {
+      final ok = await ref
+          .read(offlineCheckInManagerProvider.notifier)
+          .downloadOfflinePack(widget.weddingId);
+      if (!mounted) return;
+      setState(() {
+        _packMessage = ok
+            ? 'Pack hors ligne mis à jour'
+            : 'Échec du téléchargement du pack';
+        _packLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _packMessage = 'Échec du téléchargement du pack';
+        _packLoading = false;
       });
     }
   }
@@ -258,6 +285,37 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
             subtitle: Text(_offline ? 'Pack local uniquement' : 'Connexion requise'),
             activeThumbColor: AppColors.agentGold,
           ),
+          if (_offline) ...[
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.agentGold,
+                foregroundColor: Colors.white,
+                minimumSize: const Size.fromHeight(48),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+              onPressed: _packLoading ? null : _downloadPack,
+              icon: _packLoading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    )
+                  : const Icon(Icons.download),
+              label: Text(_packLoading ? 'Téléchargement...' : 'Télécharger le pack hors ligne'),
+            ),
+            if (_packMessage != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _packMessage!,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _packMessage!.startsWith('Échec') ? AppColors.danger : AppColors.success,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ],
         ],
       ),
     );
