@@ -864,7 +864,7 @@ class _StatItem extends StatelessWidget {
   }
 }
 
-class _EventCard extends ConsumerWidget {
+class _EventCard extends StatelessWidget {
   const _EventCard({
     required this.event,
     required this.onTap,
@@ -878,7 +878,7 @@ class _EventCard extends ConsumerWidget {
   final List<int>? coverImageBytes;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final status = event.status.toUpperCase();
     final statusColor = _statusColor(status);
