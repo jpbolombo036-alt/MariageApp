@@ -221,42 +221,32 @@ class _AgentAccueilHomeScreenState
             _StatsWarning(message: _statsError!),
             const SizedBox(height: 16),
           ],
-          Row(
+          Column(
             children: [
-              Expanded(
-                child: _MiniStat(
-                  icon: Icons.group_outlined,
-                  label: 'Invités attendus',
-                  value: expectedAttendees == null ? '—' : '$expectedAttendees',
-                  accent: p.primary,
-                ),
+              _MiniStat(
+                icon: Icons.group_outlined,
+                label: 'Invités attendus',
+                value: expectedAttendees == null ? '—' : '$expectedAttendees',
+                accent: p.primary,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _MiniStat(
-                  icon: Icons.check_circle_outlined,
-                  label: 'Présents',
-                  value: presentAttendees == null ? '—' : '$presentAttendees',
-                  accent: AppColors.success,
-                ),
+              const SizedBox(height: 12),
+              _MiniStat(
+                icon: Icons.check_circle_outlined,
+                label: 'Présents',
+                value: presentAttendees == null ? '—' : '$presentAttendees',
+                accent: AppColors.success,
               ),
-            ],
-          ),
-          if (remainingAttendees != null) ...[
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _MiniStat(
-                    icon: Icons.hourglass_empty_outlined,
-                    label: 'Restants',
-                    value: '$remainingAttendees',
-                    accent: AppColors.agentGold,
-                  ),
+              if (remainingAttendees != null) ...[
+                const SizedBox(height: 12),
+                _MiniStat(
+                  icon: Icons.hourglass_empty_outlined,
+                  label: 'Restants',
+                  value: '$remainingAttendees',
+                  accent: AppColors.agentGold,
                 ),
               ],
-            ),
-          ],
+            ],
+          ),
           const SizedBox(height: 18),
           _AttendanceProgress(attendance: attendance, palette: p),
           const SizedBox(height: 18),
