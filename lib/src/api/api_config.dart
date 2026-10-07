@@ -37,10 +37,10 @@ class ApiConfig {
   static String get baseUrl {
     if (_defineBaseUrl.isNotEmpty) return _normalize(_defineBaseUrl);
     if (_defineEnv.isNotEmpty) return _normalize(_fromEnvName(_defineEnv));
-    return kReleaseMode ? productionBaseUrl : defaultLocalBaseUrl;
+    return productionBaseUrl;
   }
 
-  /// Backend local correspondant à la plateforme courante.
+  /// Backend correspondant à la plateforme courante.
   static String get defaultLocalBaseUrl =>
       defaultTargetPlatform == TargetPlatform.android
           ? localAndroidBaseUrl
