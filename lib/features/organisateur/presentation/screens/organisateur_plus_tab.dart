@@ -7,47 +7,25 @@ import '../../../../src/auth/auth_providers.dart';
 import '../../../../src/theme/app_theme.dart';
 import '../../../../src/theme/theme_controller.dart';
 import '../../../../src/user/profile_edit_page.dart';
+import '../../../../src/wedding/wedding_api.dart';
 import 'change_password_screen.dart';
 import 'create_user_screen.dart';
 
 /// Onglet « Plus » de l'ORGANISATEUR : profil, équipe, préférences, déconnexion.
-class OrganizerMoreTab extends ConsumerStatefulWidget {
-  const OrganizerMoreTab({super.key});
+class OrganizerMoreTab extends ConsumerWidget {
+  const OrganizerMoreTab({
+    super.key,
+    required this.weddings,
+    required this.selectedWeddingId,
+    required this.onSelectWedding,
+  });
+
+  final List<Wedding> weddings;
+  final int? selectedWeddingId;
+  final ValueChanged<int> onSelectWedding;
 
   @override
-  ConsumerState<OrganizerMoreTab> createState() => _OrganizerMoreTabState();
-}
-
-class _OrganizerMoreTabState extends ConsumerState<OrganizerMoreTab> {
-  Future<void> _logout() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Se déconnecter ?'),
-        content: const Text(
-            'Vous devrez vous reconnecter pour accéder à votre espace.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Retour')),
-          TextButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('Déconnexion')),
-        ],
-      ),
-    );
-    if (ok != true || !mounted) return;
-    await ref.read(authControllerProvider.notifier).logout();
-  }
-
-  void _openCreateUser() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const CreateUserScreen()),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     final auth = ref.watch(authControllerProvider);
     final user = auth.user;
@@ -66,6 +44,56 @@ class _OrganizerMoreTabState extends ConsumerState<OrganizerMoreTab> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Plus', style: AppTypography.display(color: scheme.onSurface)),
+          const SizedBox(height: 16),
+          if (weddings.isNotEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: scheme.outline.withValues(alpha: 0.5)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.event_rounded, color: scheme.primary, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      () {
+                        Wedding? selected;
+                        try {
+                          selected = weddings.firstWhere((w) => w.id == selectedWeddingId);
+                        } catch (_) {
+                          selected = weddings.isNotEmpty ? weddings.first : null;
+                        }
+                        return selected?.displayName.isNotEmpty == true ? selected!.displayName : 'Événement';
+                      }(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: scheme.onSurface, fontSize: 15, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  PopupMenuButton<int>(
+                    icon: Icon(Icons.swap_vert_rounded, color: scheme.onSurfaceVariant, size: 20),
+                    onSelected: onSelectWedding,
+                    itemBuilder: (context) => [
+                      for (final w in weddings)
+                        PopupMenuItem(
+                          value: w.id,
+                          child: Text(
+                            w.displayName.isNotEmpty ? w.displayName : 'Événement ${w.id}',
+                            style: TextStyle(
+                              color: w.id == selectedWeddingId ? scheme.primary : scheme.onSurface,
+                              fontWeight: w.id == selectedWeddingId ? FontWeight.w700 : FontWeight.w400,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           const SizedBox(height: 16),
           Container(
             width: double.infinity,
@@ -114,13 +142,17 @@ class _OrganizerMoreTabState extends ConsumerState<OrganizerMoreTab> {
               style: AppTypography.sectionTitle(color: scheme.onSurface)),
           const SizedBox(height: 8),
           if (hasTeamPerm)
-            _tile(scheme,
+            _Tile(scheme,
                 icon: Icons.group_add_outlined,
                 label: 'Gérer l\u2019équipe',
                 subtitle: 'Ajouter un membre',
-                onTap: _openCreateUser),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const CreateUserScreen()),
+                  );
+                }),
           if (isSuperAdmin)
-            _tile(scheme,
+            _Tile(scheme,
                 icon: Icons.admin_panel_settings_outlined,
                 label: 'Administration',
                 subtitle: 'Utilisateurs, rôles, organisations',
@@ -129,7 +161,7 @@ class _OrganizerMoreTabState extends ConsumerState<OrganizerMoreTab> {
                         builder: (_) => const AdminPage(),
                       ),
                     )),
-          _tile(scheme,
+          _Tile(scheme,
               icon: Icons.person_outline,
               label: 'Informations personnelles',
               onTap: () => Navigator.of(context).push(
@@ -137,39 +169,51 @@ class _OrganizerMoreTabState extends ConsumerState<OrganizerMoreTab> {
                       builder: (_) => const ProfileEditPage(),
                     ),
                   )),
-          _tile(scheme,
+          _Tile(scheme,
               icon: Icons.lock_outline,
               label: 'Changer le mot de passe',
               onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
                       builder: (_) => const ChangePasswordScreen()))),
-          _tile(scheme,
+          _Tile(scheme,
               icon: Icons.notifications_none_outlined,
               label: 'Notifications',
               onTap: () {}),
-          _tile(scheme,
+          _Tile(scheme,
               icon: Icons.language,
               label: 'Langue',
               value: 'Français',
               onTap: () {}),
-          _tile(scheme,
+          _Tile(scheme,
               icon: Icons.dark_mode_outlined,
               label: 'Apparence',
               value: themeModeLabel(themeMode),
               onTap: () => showThemeModePicker(context, ref)),
           const SizedBox(height: 24),
-          _logoutTile(scheme),
+          _LogoutTile(scheme),
         ],
       ),
     );
   }
+}
 
-  Widget _tile(ColorScheme scheme,
-      {required IconData icon,
-      required String label,
-      String? subtitle,
-      String? value,
-      VoidCallback? onTap}) {
+class _Tile extends StatelessWidget {
+  const _Tile(this.scheme,
+      {required this.icon,
+      required this.label,
+      this.subtitle,
+      this.value,
+      this.onTap});
+
+  final ColorScheme scheme;
+  final IconData icon;
+  final String label;
+  final String? subtitle;
+  final String? value;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
       child: Container(
@@ -192,14 +236,14 @@ class _OrganizerMoreTabState extends ConsumerState<OrganizerMoreTab> {
                       style:
                           TextStyle(fontSize: 14, color: scheme.onSurface)),
                   if (subtitle != null)
-                    Text(subtitle,
+                    Text(subtitle!,
                         style:
                             TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
                 ],
               ),
             ),
             if (value != null)
-              Text(value,
+              Text(value!,
                   style:
                       TextStyle(fontSize: 12, color: scheme.onSurfaceVariant))
             else
@@ -210,10 +254,37 @@ class _OrganizerMoreTabState extends ConsumerState<OrganizerMoreTab> {
       ),
     );
   }
+}
 
-  Widget _logoutTile(ColorScheme scheme) {
+class _LogoutTile extends StatelessWidget {
+  const _LogoutTile(this.scheme);
+
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
     return InkWell(
-      onTap: _logout,
+      onTap: () async {
+        final ok = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Se déconnecter ?'),
+            content: const Text(
+                'Vous devrez vous reconnecter pour accéder à votre espace.'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(false),
+                  child: const Text('Retour')),
+              TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(true),
+                  child: const Text('Déconnexion')),
+            ],
+          ),
+        );
+        if (ok != true || !context.mounted) return;
+        final ref = ProviderScope.containerOf(context);
+        await ref.read(authControllerProvider.notifier).logout();
+      },
       borderRadius: BorderRadius.circular(AppRadius.field),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),

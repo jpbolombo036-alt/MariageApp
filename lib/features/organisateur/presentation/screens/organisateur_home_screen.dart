@@ -52,14 +52,6 @@ class _OrganisateurHomeScreenState
       body: SafeArea(
         child: Column(
           children: [
-            if (_weddings.isNotEmpty)
-              _WeddingSelector(
-                weddings: _weddings,
-                selectedId: _selectedWeddingId ?? _weddings.first.id,
-                onSelected: (id) {
-                  setState(() => _selectedWeddingId = id);
-                },
-              ),
             const SizedBox(height: 8),
             Expanded(
               child: IndexedStack(
@@ -76,7 +68,13 @@ class _OrganisateurHomeScreenState
                     key: ValueKey('calendar-${_selectedWeddingId ?? 0}'),
                     weddingId: _selectedWeddingId,
                   ),
-                  const OrganizerMoreTab(),
+                  OrganizerMoreTab(
+                    weddings: _weddings,
+                    selectedWeddingId: _selectedWeddingId,
+                    onSelectWedding: (id) {
+                      setState(() => _selectedWeddingId = id);
+                    },
+                  ),
                 ],
               ),
             ),
@@ -208,67 +206,5 @@ class _GuestsTabState extends ConsumerState<_GuestsTab> {
   }
 }
 
-class _WeddingSelector extends StatelessWidget {
-  const _WeddingSelector({
-    required this.weddings,
-    required this.selectedId,
-    required this.onSelected,
-  });
 
-  final List<Wedding> weddings;
-  final int selectedId;
-  final ValueChanged<int> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    Wedding? selected;
-    try {
-      selected = weddings.firstWhere((w) => w.id == selectedId);
-    } catch (_) {
-      selected = weddings.isNotEmpty ? weddings.first : null;
-    }
-    if (selected == null) return const SizedBox.shrink();
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: scheme.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: scheme.outline.withValues(alpha: 0.5)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.event_rounded, color: scheme.primary, size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              selected.displayName.isNotEmpty ? selected.displayName : 'Événement',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: scheme.onSurface, fontSize: 15, fontWeight: FontWeight.w700),
-            ),
-          ),
-          PopupMenuButton<int>(
-            icon: Icon(Icons.swap_vert_rounded, color: scheme.onSurfaceVariant, size: 20),
-            onSelected: onSelected,
-            itemBuilder: (context) => [
-              for (final w in weddings)
-                PopupMenuItem(
-                  value: w.id,
-                  child: Text(
-                    w.displayName.isNotEmpty ? w.displayName : 'Événement ${w.id}',
-                    style: TextStyle(
-                      color: w.id == selectedId ? scheme.primary : scheme.onSurface,
-                      fontWeight: w.id == selectedId ? FontWeight.w700 : FontWeight.w400,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
 
