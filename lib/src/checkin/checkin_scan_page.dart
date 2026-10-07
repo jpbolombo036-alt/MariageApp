@@ -30,19 +30,11 @@ class _CheckInScanPageState extends ConsumerState<CheckInScanPage> {
   String? _recordResult;
   int _attendees = 1;
   bool _offline = false;
+  bool _listening = false;
 
   @override
   void initState() {
     super.initState();
-    // Synchronisation automatique lorsque le réseau revient.
-    ref.listen<bool>(
-      offlineCheckInManagerProvider,
-      (previous, next) {
-        if (next && previous == false) {
-          _syncOfflineScans();
-        }
-      },
-    );
   }
 
   @override
@@ -155,6 +147,19 @@ class _CheckInScanPageState extends ConsumerState<CheckInScanPage> {
   Widget build(BuildContext context) {
     final auth = ref.watch(authControllerProvider);
     final canScan = auth.hasPermission(PermissionCodes.checkinCreate);
+
+    if (!_listening) {
+      _listening = true;
+      ref.listen<bool>(
+        offlineCheckInManagerProvider,
+        (previous, next) {
+          if (next && previous == false) {
+            _syncOfflineScans();
+          }
+        },
+      );
+    }
+
     if (!canScan) {
       return Scaffold(
         appBar: AppBar(title: const Text('Accueil')),
