@@ -67,11 +67,14 @@ class _OrganisateurHomeScreenState
                 children: [
                   const MesEvenementsScreen(embedded: true),
                   _GuestsTab(
+                    key: ValueKey('guests-${_selectedWeddingId ?? 0}'),
                     weddingId: _selectedWeddingId,
                     onBack: () => setState(() => _tab = OrganizerTab.home),
                   ),
-                  const SizedBox.shrink(),
-                  const CalendrierOnglet(),
+                  CalendrierOnglet(
+                    key: ValueKey('calendar-${_selectedWeddingId ?? 0}'),
+                    weddingId: _selectedWeddingId,
+                  ),
                   const OrganizerMoreTab(),
                 ],
               ),
@@ -108,7 +111,7 @@ class _OrganisateurHomeScreenState
 
 
 class _GuestsTab extends ConsumerStatefulWidget {
-  const _GuestsTab({this.weddingId, required this.onBack});
+  const _GuestsTab({super.key, this.weddingId, required this.onBack});
 
   final int? weddingId;
 
@@ -133,6 +136,22 @@ class _GuestsTabState extends ConsumerState<_GuestsTab> {
     } else {
       _hasEvents = true;
       _loading = false;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _GuestsTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.weddingId != widget.weddingId) {
+      _weddingId = widget.weddingId;
+      if (_weddingId != null) {
+        setState(() {
+          _hasEvents = true;
+          _loading = false;
+        });
+      } else {
+        _loadWedding();
+      }
     }
   }
 

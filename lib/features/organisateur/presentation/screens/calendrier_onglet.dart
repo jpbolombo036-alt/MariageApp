@@ -23,7 +23,9 @@ extension ProgramFilterX on ProgramFilter {
 
 /// Onglet « Calendrier » : programme des temps forts, groupés par jour.
 class CalendrierOnglet extends ConsumerStatefulWidget {
-  const CalendrierOnglet({super.key});
+  const CalendrierOnglet({super.key, this.weddingId});
+
+  final int? weddingId;
 
   @override
   ConsumerState<CalendrierOnglet> createState() => _CalendrierOngletState();
@@ -57,33 +59,22 @@ class _CalendrierOngletState extends ConsumerState<CalendrierOnglet> {
       _error = null;
     });
     try {
-      final weddings = await ref.read(weddingApiProvider).list(size: 25);
-      if (!mounted) return;
-      if (weddings.isEmpty) {
-        setState(() {
-          _wedding = null;
-          _sessions = const [];
-          _loading = false;
-        });
+      final weddingId = widget.weddingId;
+      if (weddingId == null) {
+        final weddings = await ref.read(weddingApiProvider).list(size: 25);
+        if (!mounted) return;
+        if (weddings.isEmpty) {
+          setState(() {
+            _wedding = null;
+            _sessions = const [];
+            _loading = false;
+          });
+          return;
+        }
+        await _loadForWedding(weddings.first.id);
         return;
       }
-      final wedding = weddings.first;
-      final sessions = await ref
-          .read(weddingEventApiProvider)
-          .list(wedding.id, size: 100);
-      if (!mounted) return;
-      setState(() {
-        _wedding = wedding;
-        _sessions = sessions;
-        if (!_anchored) {
-          _selectedDay = _anchorDay(wedding, sessions);
-          _stripBase = _selectedDay.subtract(
-            const Duration(days: _stripLength ~/ 2),
-          );
-          _anchored = true;
-        }
-        _loading = false;
-      });
+      await _loadForWedding(weddingId);
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -91,6 +82,26 @@ class _CalendrierOngletState extends ConsumerState<CalendrierOnglet> {
         _error = 'Impossible de charger le programme';
       });
     }
+  }
+
+  Future<void> _loadForWedding(int weddingId) async {
+    final wedding = await ref.read(weddingApiProvider).getById(weddingId);
+    final sessions = await ref
+        .read(weddingEventApiProvider)
+        .list(weddingId, size: 100);
+    if (!mounted) return;
+    setState(() {
+      _wedding = wedding;
+      _sessions = sessions;
+      if (!_anchored) {
+        _selectedDay = _anchorDay(wedding, sessions);
+        _stripBase = _selectedDay.subtract(
+          const Duration(days: _stripLength ~/ 2),
+        );
+        _anchored = true;
+      }
+      _loading = false;
+    });
   }
 
   // --- Données dérivées ---------------------------------------------------
