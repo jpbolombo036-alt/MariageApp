@@ -63,7 +63,7 @@ class _OrganisateurHomeScreenState
             const SizedBox(height: 8),
             Expanded(
               child: IndexedStack(
-                index: _tab.index,
+                index: _tab == OrganizerTab.add ? 0 : _tab.index,
                 children: [
                   const MesEvenementsScreen(embedded: true),
                   _GuestsTab(
@@ -71,6 +71,7 @@ class _OrganisateurHomeScreenState
                     weddingId: _selectedWeddingId,
                     onBack: () => setState(() => _tab = OrganizerTab.home),
                   ),
+                  const SizedBox.shrink(),
                   CalendrierOnglet(
                     key: ValueKey('calendar-${_selectedWeddingId ?? 0}'),
                     weddingId: _selectedWeddingId,
