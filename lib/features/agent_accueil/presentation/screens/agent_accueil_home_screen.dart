@@ -16,7 +16,6 @@ import '../../../../src/wedding/wedding_api.dart';
 import '../../../../src/wedding/wedding_providers.dart';
 import '../widgets/agent_bottom_navigation.dart';
 import '../widgets/agent_header.dart';
-import '../widgets/event_card.dart';
 import '../widgets/guest_search_bar.dart';
 import '../widgets/scanner_action_card.dart';
 import 'agent_attendance_screen.dart';
@@ -41,7 +40,7 @@ class _AgentAccueilHomeScreenState
 
   String? _statsError;
   int? _presentFallback;
-  int? _lastScannedWeddingId;
+  int? _selectedWeddingId;
 
   @override
   void initState() {
@@ -56,14 +55,11 @@ class _AgentAccueilHomeScreenState
     });
 
     final storage = const FlutterSecureStorage();
-    _lastScannedWeddingId = int.tryParse((await storage.read(key: 'last_wedding_id')) ?? '');
 
     List<Wedding> weddings;
     try {
       weddings = await ref.read(weddingApiProvider).list(size: 25);
-      if (weddings.isNotEmpty) {
-        await storage.write(key: 'last_wedding_id', value: weddings.first.id.toString());
-      }
+      weddings = [...weddings]..sort((a, b) => (a.displayOrder ?? 999).compareTo(b.displayOrder ?? 999));
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -76,19 +72,27 @@ class _AgentAccueilHomeScreenState
       return;
     }
 
+    final storedSelected = int.tryParse((await storage.read(key: 'selected_wedding_id')) ?? '');
+    if (storedSelected != null && storedSelected > 0 && weddings.any((w) => w.id == storedSelected)) {
+      _selectedWeddingId = storedSelected;
+    } else if (weddings.isNotEmpty) {
+      _selectedWeddingId = weddings.first.id;
+    } else {
+      _selectedWeddingId = null;
+    }
+
     Dashboard? dash;
     int? presentFallback;
     String? statsError;
 
-    if (weddings.isNotEmpty) {
-      final weddingId = weddings.first.id;
+    if (_selectedWeddingId != null) {
       try {
-        dash = await ref.read(dashboardApiProvider).getForWedding(weddingId);
+        dash = await ref.read(dashboardApiProvider).getForWedding(_selectedWeddingId!);
       } catch (error) {
         try {
           final present = await ref
               .read(checkInApiProvider)
-              .listPresent(weddingId);
+              .listPresent(_selectedWeddingId!);
           presentFallback = present.fold<int>(
             0,
             (sum, person) => sum + person.numberOfAttendees,
@@ -110,6 +114,47 @@ class _AgentAccueilHomeScreenState
     });
   }
 
+  Future<void> _selectWedding(int weddingId) async {
+    final storage = const FlutterSecureStorage();
+    await storage.write(key: 'selected_wedding_id', value: weddingId.toString());
+    setState(() {
+      _selectedWeddingId = weddingId;
+      _dashboard = null;
+      _presentFallback = null;
+      _statsError = null;
+    });
+    await _loadStats(weddingId);
+  }
+
+  Future<void> _loadStats(int weddingId) async {
+    try {
+      final dash = await ref.read(dashboardApiProvider).getForWedding(weddingId);
+      if (!mounted) return;
+      setState(() {
+        _dashboard = dash;
+      });
+    } catch (error) {
+      try {
+        final present = await ref
+            .read(checkInApiProvider)
+            .listPresent(weddingId);
+        if (!mounted) return;
+        setState(() {
+          _presentFallback = present.fold<int>(
+            0,
+            (sum, person) => sum + person.numberOfAttendees,
+          );
+          _statsError = _statsMessage(error, hasPresentFallback: true);
+        });
+      } catch (_) {
+        if (!mounted) return;
+        setState(() {
+          _statsError = _statsMessage(error, hasPresentFallback: false);
+        });
+      }
+    }
+  }
+
   String _statsMessage(Object error, {required bool hasPresentFallback}) {
     final denied = error is DioException && error.response?.statusCode == 403;
     if (denied) {
@@ -123,12 +168,7 @@ class _AgentAccueilHomeScreenState
   }
 
   void _openScanner() {
-    int? weddingId;
-    if (_weddings.isNotEmpty) {
-      weddingId = _weddings.first.id;
-    } else {
-      weddingId = _lastScannedWeddingId;
-    }
+    int? weddingId = _selectedWeddingId;
     if (weddingId == null || weddingId == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Aucun événement assigné pour le scan')),
@@ -137,7 +177,7 @@ class _AgentAccueilHomeScreenState
     }
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => QrScannerScreen(weddingId: weddingId!),
+        builder: (_) => QrScannerScreen(weddingId: weddingId),
       ),
     );
   }
@@ -167,12 +207,12 @@ class _AgentAccueilHomeScreenState
                 children: [
                   _buildHome(displayName, p),
                   _GuestsPlaceholder(
-                    weddingId: _weddings.isEmpty ? 0 : _weddings.first.id,
+                    weddingId: _selectedWeddingId ?? 0,
                     onBack: () => setState(() => _tab = AgentTab.home),
                   ),
                   const SizedBox.shrink(),
                   AgentAttendanceScreen(
-                    weddingId: _weddings.isEmpty ? 0 : _weddings.first.id,
+                    weddingId: _selectedWeddingId ?? 0,
                   ),
                   const AgentProfileScreen(),
                 ],
@@ -186,7 +226,6 @@ class _AgentAccueilHomeScreenState
   }
 
   Widget _buildHome(String firstName, AgentPalette p) {
-    final wedding = _weddings.isNotEmpty ? _weddings.first : null;
     final attendance = _dashboard?.attendance;
 
     final expectedAttendees = attendance?.expected ?? _dashboard?.guests.total;
@@ -204,13 +243,12 @@ class _AgentAccueilHomeScreenState
             onNotificationsTap: () {},
             onProfileTap: () => setState(() => _tab = AgentTab.profile),
           ),
-          const SizedBox(height: 24),
-          if (wedding != null)
-            EventCard(
-              eventName: wedding.displayName,
-              venue: wedding.welcomeMessage,
-              dateLabel: wedding.description,
-              isActive: wedding.status == 'PUBLISHED',
+          const SizedBox(height: 18),
+          if (_weddings.isNotEmpty)
+            _WeddingSelector(
+              weddings: _weddings,
+              selectedId: _selectedWeddingId ?? _weddings.first.id,
+              onSelected: _selectWedding,
             )
           else
             _EmptyEventCard(p: p),
@@ -284,6 +322,70 @@ class _EmptyEventCard extends StatelessWidget {
               'Aucun événement assigné pour le moment.',
               style: TextStyle(color: p.textSecondary, fontSize: 14),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WeddingSelector extends StatelessWidget {
+  const _WeddingSelector({
+    required this.weddings,
+    required this.selectedId,
+    required this.onSelected,
+  });
+
+  final List<Wedding> weddings;
+  final int selectedId;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AgentPalette.of(context);
+    Wedding? selected;
+    try {
+      selected = weddings.firstWhere((w) => w.id == selectedId);
+    } catch (_) {
+      selected = weddings.isNotEmpty ? weddings.first : null;
+    }
+    final label = selected?.displayName.isNotEmpty == true ? selected!.displayName : 'Événement';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: p.border),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.event_rounded, color: p.primary, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: p.textPrimary, fontSize: 15, fontWeight: FontWeight.w700),
+            ),
+          ),
+          PopupMenuButton<int>(
+            icon: Icon(Icons.swap_vert_rounded, color: p.textSecondary, size: 20),
+            onSelected: onSelected,
+            itemBuilder: (context) => [
+              for (final w in weddings)
+                PopupMenuItem(
+                  value: w.id,
+                  child: Text(
+                    w.displayName.isNotEmpty ? w.displayName : 'Événement ${w.id}',
+                    style: TextStyle(
+                      color: w.id == selectedId ? p.primary : p.textPrimary,
+                      fontWeight: w.id == selectedId ? FontWeight.w700 : FontWeight.w400,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ],
       ),
