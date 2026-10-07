@@ -308,34 +308,50 @@ class _MiniStat extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = AgentPalette.of(context);
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
       decoration: BoxDecoration(
         color: p.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(color: p.border),
+        boxShadow: p.cardShadow,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Icon(icon, color: accent, size: 20),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: TextStyle(
-              color: p.textPrimary,
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-              height: 1,
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(14),
             ),
+            child: Icon(icon, color: accent, size: 20),
           ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: p.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              height: 1.3,
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: TextStyle(
+                    color: p.textPrimary,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    height: 1,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: p.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    height: 1.3,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
