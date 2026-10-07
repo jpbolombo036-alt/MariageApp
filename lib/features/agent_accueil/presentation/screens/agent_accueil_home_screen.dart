@@ -210,16 +210,13 @@ class _AgentAccueilHomeScreenState
     final wedding = _weddings.isNotEmpty ? _weddings.first : null;
     final attendance = _dashboard?.attendance;
 
-    // « Invités attendus » = personnes prévues par les RSVP (`expected`), comme
-    // dans l'onglet Présences. Repli sur le total d'invités, sinon `null` afin
-    // d'afficher « — » plutôt qu'un « 0 » trompeur.
     final expectedAttendees = attendance?.expected ?? _dashboard?.guests.total;
     final presentAttendees = attendance?.checkedIn ?? _presentFallback;
 
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 0),
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           AgentHeader(
@@ -227,59 +224,46 @@ class _AgentAccueilHomeScreenState
             onNotificationsTap: () {},
             onProfileTap: () => setState(() => _tab = AgentTab.profile),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: EventCard(
-              eventName: wedding?.displayName,
-              venue: wedding?.welcomeMessage,
-              dateLabel: wedding?.description,
-              isActive: wedding?.status == 'PUBLISHED',
-            ),
+          const SizedBox(height: 22),
+          EventCard(
+            eventName: wedding?.displayName,
+            venue: wedding?.welcomeMessage,
+            dateLabel: wedding?.description,
+            isActive: wedding?.status == 'PUBLISHED',
           ),
           const SizedBox(height: 20),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: ScannerActionCard(onTap: _openScanner),
-          ),
-          const SizedBox(height: 20),
+          ScannerActionCard(onTap: _openScanner),
+          const SizedBox(height: 18),
           if (_statsError != null) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: _StatsWarning(message: _statsError!),
-            ),
+            _StatsWarning(message: _statsError!),
             const SizedBox(height: 16),
           ],
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                AttendanceStatCard(
+          Row(
+            children: [
+              Expanded(
+                child: AttendanceStatCard(
                   icon: Icons.group_outlined,
                   value: expectedAttendees == null ? '—' : '$expectedAttendees',
                   label: 'Invités attendus',
                 ),
-                const SizedBox(width: 14),
-                AttendanceStatCard(
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: AttendanceStatCard(
                   icon: Icons.check_circle_outline,
                   value: presentAttendees == null ? '—' : '$presentAttendees',
                   label: 'Invités présents',
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: _buildAttendanceOverview(attendance, p),
+          _buildAttendanceOverview(attendance, p),
+          const SizedBox(height: 18),
+          GuestSearchBar(
+            onTap: () => setState(() => _tab = AgentTab.guests),
           ),
           const SizedBox(height: 20),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: GuestSearchBar(
-              onTap: () => setState(() => _tab = AgentTab.guests),
-            ),
-          ),
-          const SizedBox(height: 24),
         ],
       ),
     );
@@ -287,15 +271,13 @@ class _AgentAccueilHomeScreenState
 }
 
 Widget _buildAttendanceOverview(AttendanceStats? attendance, AgentPalette p) {
-  // Le tableau de bord peut être refusé au rôle AGENT_ACCUEIL : on affiche une
-  // information neutre au lieu d'un « 0 sur 0 · 0% » trompeur.
   if (attendance == null) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: p.surface,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: p.border),
       ),
       child: Row(
@@ -305,7 +287,7 @@ Widget _buildAttendanceOverview(AttendanceStats? attendance, AgentPalette p) {
           Expanded(
             child: Text(
               'Progression des arrivées indisponible pour votre rôle.',
-              style: TextStyle(color: p.textSecondary, fontSize: 13),
+              style: TextStyle(color: p.textSecondary, fontSize: 13, height: 1.35),
             ),
           ),
         ],
@@ -318,10 +300,10 @@ Widget _buildAttendanceOverview(AttendanceStats? attendance, AgentPalette p) {
       ? 0.0
       : (checkedIn / expected).clamp(0.0, 1.0).toDouble();
   return Container(
-    padding: const EdgeInsets.all(18),
+    padding: const EdgeInsets.all(20),
     decoration: BoxDecoration(
       color: p.surface,
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(24),
       border: Border.all(color: p.border),
       boxShadow: p.cardShadow,
     ),
@@ -331,15 +313,15 @@ Widget _buildAttendanceOverview(AttendanceStats? attendance, AgentPalette p) {
         Row(
           children: [
             Container(
-              width: 38,
-              height: 38,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
                 color: p.primary.withValues(alpha: 0.10),
                 shape: BoxShape.circle,
               ),
               child: Icon(Icons.insights_outlined, color: p.primary, size: 20),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -370,17 +352,17 @@ Widget _buildAttendanceOverview(AttendanceStats? attendance, AgentPalette p) {
             ),
           ],
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         ClipRRect(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(10),
           child: LinearProgressIndicator(
             value: rate,
-            minHeight: 9,
+            minHeight: 10,
             backgroundColor: p.border,
             color: p.primary,
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -418,24 +400,24 @@ class _StatsWarning extends StatelessWidget {
     final p = AgentPalette.of(context);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: p.surface,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: p.border),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(Icons.info_outline, color: p.textSecondary, size: 18),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
               message,
               style: TextStyle(
                 color: p.textSecondary,
-                fontSize: 12,
-                height: 1.35,
+                fontSize: 13,
+                height: 1.4,
               ),
             ),
           ),

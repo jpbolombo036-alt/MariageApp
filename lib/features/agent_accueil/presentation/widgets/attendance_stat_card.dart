@@ -20,17 +20,18 @@ class AttendanceStatCard extends StatelessWidget {
     final p = AgentPalette.of(context);
     return Expanded(
       child: Container(
-        height: 140,
-        padding: const EdgeInsets.all(18),
+        height: 148,
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
         decoration: BoxDecoration(
           color: p.surface,
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(color: p.border),
+          boxShadow: p.cardShadow,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: p.primary, size: 24),
+            Icon(icon, color: p.primary, size: 22),
             const Spacer(),
             Text(
               value,
@@ -39,11 +40,11 @@ class AttendanceStatCard extends StatelessWidget {
               style: TextStyle(
                 color: p.textPrimary,
                 fontSize: 32,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w800,
                 height: 1,
               ),
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 4),
             Text(
               label,
               maxLines: 2,
@@ -52,7 +53,7 @@ class AttendanceStatCard extends StatelessWidget {
                 color: p.textSecondary,
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                height: 1.2,
+                height: 1.25,
               ),
             ),
           ],

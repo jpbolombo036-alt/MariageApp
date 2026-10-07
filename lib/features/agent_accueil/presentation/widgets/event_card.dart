@@ -36,7 +36,7 @@ class EventCard extends StatelessWidget {
           Expanded(
             flex: 3,
             child: Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.fromLTRB(22, 22, 12, 22),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -46,45 +46,48 @@ class EventCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: p.textPrimary,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      height: 1.15,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   if (venue != null && venue!.isNotEmpty)
                     Row(
                       children: [
-                        Icon(Icons.location_on_outlined, size: 16, color: p.textSecondary),
-                        const SizedBox(width: 4),
+                        Icon(Icons.location_on_outlined, size: 17, color: p.textSecondary),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             venue!,
                             maxLines: 1,
-                            style: TextStyle(color: p.textSecondary, fontSize: 14),
+                            style: TextStyle(color: p.textSecondary, fontSize: 14, height: 1.2),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
                   if (dateLabel != null && dateLabel!.isNotEmpty)
-                    Row(
-                      children: [
-                        Icon(Icons.calendar_today_outlined, size: 14, color: p.textSecondary),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            dateLabel!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(color: p.textSecondary, fontSize: 14),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Row(
+                        children: [
+                          Icon(Icons.calendar_today_outlined, size: 15, color: p.textSecondary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              dateLabel!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: p.textSecondary, fontSize: 14, height: 1.2),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   const Spacer(),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     decoration: BoxDecoration(
                       color: isActive ? p.successBg : p.border,
                       borderRadius: BorderRadius.circular(20),
@@ -94,7 +97,7 @@ class EventCard extends StatelessWidget {
                       children: [
                         if (isActive) ...[
                           Icon(Icons.circle, size: 9, color: AppColors.success),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: 8),
                         ],
                         Flexible(
                           child: Text(
@@ -105,7 +108,7 @@ class EventCard extends StatelessWidget {
                             color: isActive ? AppColors.success : p.textSecondary,
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            letterSpacing: 0.4,
+                            letterSpacing: 0.5,
                           ),
                         ),
                         ),
