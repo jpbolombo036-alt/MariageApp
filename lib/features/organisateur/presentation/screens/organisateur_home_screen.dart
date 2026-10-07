@@ -63,7 +63,7 @@ class _OrganisateurHomeScreenState
             const SizedBox(height: 8),
             Expanded(
               child: IndexedStack(
-                index: _tab == OrganizerTab.add ? 0 : _tab.index,
+                index: _tab.index,
                 children: [
                   const MesEvenementsScreen(embedded: true),
                   _GuestsTab(
@@ -91,11 +91,13 @@ class _OrganisateurHomeScreenState
   }
 
   void _onSelect(OrganizerTab tab) {
-    if (tab == OrganizerTab.add) {
-      _openCreate();
-      return;
+    switch (tab) {
+      case OrganizerTab.add:
+        _openCreate();
+        break;
+      default:
+        setState(() => _tab = tab);
     }
-    setState(() => _tab = tab);
   }
 
   Future<void> _openCreate() async {
