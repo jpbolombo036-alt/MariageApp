@@ -41,7 +41,7 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
   bool _loading = true;
   String? _error;
   List<Wedding> _events = const [];
-  EventStatusFilter _filter = EventStatusFilter.all;
+  EventStatusFilter _filter = EventStatusFilter.active;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
