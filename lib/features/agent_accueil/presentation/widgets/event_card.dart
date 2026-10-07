@@ -26,115 +26,122 @@ class EventCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: p.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: p.border),
         boxShadow: p.cardShadow,
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(22, 22, 16, 22),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    eventName ?? 'Événement',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: p.textPrimary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      height: 1.25,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  if (venue != null && venue!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: Row(
-                        children: [
-                          Icon(Icons.location_on_outlined, size: 16, color: p.textSecondary),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              venue!,
-                              maxLines: 1,
-                              style: TextStyle(color: p.textSecondary, fontSize: 13, height: 1.3),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  if (dateLabel != null && dateLabel!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: Row(
-                        children: [
-                          Icon(Icons.calendar_today_outlined, size: 15, color: p.textSecondary),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              dateLabel!,
-                              maxLines: 1,
-                              style: TextStyle(color: p.textSecondary, fontSize: 13, height: 1.3),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  const SizedBox(height: 14),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                    decoration: BoxDecoration(
-                      color: isActive ? p.successBg : p.border,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Row(
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 24, 20, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        if (isActive) ...[
-                          Icon(Icons.circle, size: 8, color: AppColors.success),
-                          const SizedBox(width: 8),
-                        ],
-                        Flexible(
+                        Expanded(
                           child: Text(
-                            statusLabel ?? (isActive ? 'ÉVÉNEMENT EN COURS' : 'ÉVÉNEMENT'),
-                            maxLines: 1,
+                            eventName ?? 'Événement',
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: isActive ? AppColors.success : p.textSecondary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.4,
+                              color: p.textPrimary,
+                              fontSize: 19,
+                              fontWeight: FontWeight.w800,
+                              height: 1.25,
                             ),
                           ),
                         ),
+                        if (isActive)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: AppColors.success.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.circle, size: 7, color: AppColors.success),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'EN COURS',
+                                  style: TextStyle(
+                                    color: AppColors.success,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.4,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                       ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 14),
+                    if (venue != null && venue!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          children: [
+                            Icon(Icons.location_on_outlined, size: 16, color: p.textSecondary),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                venue!,
+                                maxLines: 1,
+                                style: TextStyle(color: p.textSecondary, fontSize: 13, height: 1.3),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (dateLabel != null && dateLabel!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          children: [
+                            Icon(Icons.calendar_today_outlined, size: 15, color: p.textSecondary),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                dateLabel!,
+                                maxLines: 1,
+                                style: TextStyle(color: p.textSecondary, fontSize: 13, height: 1.3),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    const SizedBox(height: 18),
+                    Container(
+                      height: 3,
+                      width: 36,
+                      decoration: BoxDecoration(
+                        color: p.primary,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          Container(
-            width: 88,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [p.primary, p.primaryLight],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+            Container(
+              width: 96,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [p.primary, p.primaryLight],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
               ),
-              borderRadius: const BorderRadius.only(
-                topRight: Radius.circular(24),
-                bottomRight: Radius.circular(24),
-              ),
+              child: Icon(Icons.event_rounded, color: Colors.white.withValues(alpha: 0.92), size: 36),
             ),
-            child: Icon(Icons.event_rounded, color: Colors.white.withValues(alpha: 0.9), size: 34),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
