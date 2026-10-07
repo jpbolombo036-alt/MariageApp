@@ -9,14 +9,13 @@ import '../../../../src/auth/auth_providers.dart';
 import '../../../../src/checkin/checkin_api.dart';
 import '../../../../src/checkin/checkin_providers.dart';
 import '../../../../src/dashboard/dashboard_api.dart';
-import '../../../../src/event_media/event_media_providers.dart';
 import '../../../../src/dashboard/dashboard_providers.dart';
+import '../../../../src/event_media/event_media_providers.dart';
 import '../../../../src/theme/app_colors.dart';
 import '../../../../src/wedding/wedding_api.dart';
 import '../../../../src/wedding/wedding_providers.dart';
 import '../widgets/agent_bottom_navigation.dart';
 import '../widgets/agent_header.dart';
-import '../widgets/attendance_stat_card.dart';
 import '../widgets/event_card.dart';
 import '../widgets/guest_search_bar.dart';
 import '../widgets/scanner_action_card.dart';
@@ -24,8 +23,6 @@ import 'agent_attendance_screen.dart';
 import 'agent_profile_screen.dart';
 import 'qr_scanner_screen.dart';
 
-/// Écran principal de l'espace AGENT_ACCUEIL.
-/// Réservé (via le routeur) aux utilisateurs ayant le rôle AGENT_ACCUEIL.
 class AgentAccueilHomeScreen extends ConsumerStatefulWidget {
   const AgentAccueilHomeScreen({super.key});
 
@@ -42,16 +39,8 @@ class _AgentAccueilHomeScreenState
   Dashboard? _dashboard;
   bool _loading = true;
 
-  /// Message affiché quand les statistiques n'ont pas pu être chargées.
   String? _statsError;
-
-  /// Personnes présentes calculées via le module check-in, utilisé comme repli
-  /// lorsque le tableau de bord est inaccessible (AGENT_ACCUEIL n'a pas la
-  /// permission `DASHBOARD_VIEW`).
   int? _presentFallback;
-
-  /// Dernier weddingId utilisé avec succès pour un scan — persisté pour permettre
-  /// de scanner hors ligne même si la liste des événements n'est pas chargeable.
   int? _lastScannedWeddingId;
 
   @override
@@ -69,9 +58,6 @@ class _AgentAccueilHomeScreenState
     final storage = const FlutterSecureStorage();
     _lastScannedWeddingId = int.tryParse((await storage.read(key: 'last_wedding_id')) ?? '');
 
-    // 1) Événements. Chargés séparément pour être **conservés** même si la
-    //    suite échoue : auparavant, une erreur du tableau de bord faisait
-    //    sauter le setState final et laissait `_weddings` vide (écran vide).
     List<Wedding> weddings;
     try {
       weddings = await ref.read(weddingApiProvider).list(size: 25);
@@ -90,10 +76,6 @@ class _AgentAccueilHomeScreenState
       return;
     }
 
-    // 2) Statistiques. `GET /api/events/{id}/dashboard` exige la permission
-    //    DASHBOARD_VIEW, absente du rôle AGENT_ACCUEIL → 403 possible. On ne
-    //    fait pas échouer l'écran et on alimente les présences par un repli
-    //    autorisé pour l'agent (`GET /api/checkins/event/{id}`).
     Dashboard? dash;
     int? presentFallback;
     String? statsError;
@@ -128,15 +110,12 @@ class _AgentAccueilHomeScreenState
     });
   }
 
-  /// Message lisible selon la cause de l'échec du tableau de bord.
   String _statsMessage(Object error, {required bool hasPresentFallback}) {
     final denied = error is DioException && error.response?.statusCode == 403;
     if (denied) {
       return hasPresentFallback
-          ? 'Invités attendus indisponibles : votre rôle n’a pas accès au '
-              'tableau de bord (DASHBOARD_VIEW).'
-          : 'Statistiques indisponibles : votre rôle n’a pas accès au tableau '
-              'de bord (DASHBOARD_VIEW).';
+          ? 'Invités attendus indisponibles : votre rôle n’a pas accès au tableau de bord (DASHBOARD_VIEW).'
+          : 'Statistiques indisponibles : votre rôle n’a pas accès au tableau de bord (DASHBOARD_VIEW).';
     }
     return hasPresentFallback
         ? 'Invités attendus indisponibles : tableau de bord injoignable.'
@@ -175,8 +154,8 @@ class _AgentAccueilHomeScreenState
   Widget build(BuildContext context) {
     final p = AgentPalette.of(context);
     final user = ref.watch(authControllerProvider).user;
-    final rawFirstName = user?.firstName ?? '';
-    final firstName = rawFirstName.isNotEmpty ? rawFirstName : 'Invité';
+    final firstName = (user?.firstName ?? '').trim();
+    final displayName = firstName.isNotEmpty ? firstName : 'Agent';
 
     return Scaffold(
       backgroundColor: p.background,
@@ -186,7 +165,7 @@ class _AgentAccueilHomeScreenState
             : IndexedStack(
                 index: _tab.index,
                 children: [
-                  _buildHome(firstName, p),
+                  _buildHome(displayName, p),
                   _GuestsPlaceholder(
                     weddingId: _weddings.isEmpty ? 0 : _weddings.first.id,
                     onBack: () => setState(() => _tab = AgentTab.home),
@@ -212,11 +191,12 @@ class _AgentAccueilHomeScreenState
 
     final expectedAttendees = attendance?.expected ?? _dashboard?.guests.total;
     final presentAttendees = attendance?.checkedIn ?? _presentFallback;
+    final remainingAttendees = attendance?.remaining;
 
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           AgentHeader(
@@ -224,16 +204,19 @@ class _AgentAccueilHomeScreenState
             onNotificationsTap: () {},
             onProfileTap: () => setState(() => _tab = AgentTab.profile),
           ),
-          const SizedBox(height: 22),
-          EventCard(
-            eventName: wedding?.displayName,
-            venue: wedding?.welcomeMessage,
-            dateLabel: wedding?.description,
-            isActive: wedding?.status == 'PUBLISHED',
-          ),
+          const SizedBox(height: 24),
+          if (wedding != null)
+            EventCard(
+              eventName: wedding.displayName,
+              venue: wedding.welcomeMessage,
+              dateLabel: wedding.description,
+              isActive: wedding.status == 'PUBLISHED',
+            )
+          else
+            _EmptyEventCard(p: p),
           const SizedBox(height: 20),
           ScannerActionCard(onTap: _openScanner),
-          const SizedBox(height: 18),
+          const SizedBox(height: 20),
           if (_statsError != null) ...[
             _StatsWarning(message: _statsError!),
             const SizedBox(height: 16),
@@ -241,40 +224,62 @@ class _AgentAccueilHomeScreenState
           Row(
             children: [
               Expanded(
-                child: AttendanceStatCard(
+                child: _MiniStat(
                   icon: Icons.group_outlined,
-                  value: expectedAttendees == null ? '—' : '$expectedAttendees',
                   label: 'Invités attendus',
+                  value: expectedAttendees == null ? '—' : '$expectedAttendees',
+                  accent: p.primary,
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
               Expanded(
-                child: AttendanceStatCard(
-                  icon: Icons.check_circle_outline,
+                child: _MiniStat(
+                  icon: Icons.check_circle_outlined,
+                  label: 'Présents',
                   value: presentAttendees == null ? '—' : '$presentAttendees',
-                  label: 'Invités présents',
+                  accent: AppColors.success,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          _buildAttendanceOverview(attendance, p),
+          if (remainingAttendees != null) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _MiniStat(
+                    icon: Icons.hourglass_empty_outlined,
+                    label: 'Restants',
+                    value: '$remainingAttendees',
+                    accent: AppColors.agentGold,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 18),
+          _AttendanceProgress(attendance: attendance, palette: p),
           const SizedBox(height: 18),
           GuestSearchBar(
             onTap: () => setState(() => _tab = AgentTab.guests),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
         ],
       ),
     );
   }
 }
 
-Widget _buildAttendanceOverview(AttendanceStats? attendance, AgentPalette p) {
-  if (attendance == null) {
+class _EmptyEventCard extends StatelessWidget {
+  const _EmptyEventCard({required this.p});
+
+  final AgentPalette p;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         color: p.surface,
         borderRadius: BorderRadius.circular(24),
@@ -282,114 +287,208 @@ Widget _buildAttendanceOverview(AttendanceStats? attendance, AgentPalette p) {
       ),
       child: Row(
         children: [
-          Icon(Icons.insights_outlined, color: p.textSecondary, size: 20),
+          Icon(Icons.event_busy_outlined, color: p.textSecondary, size: 22),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Progression des arrivées indisponible pour votre rôle.',
-              style: TextStyle(color: p.textSecondary, fontSize: 13, height: 1.35),
+              'Aucun événement assigné pour le moment.',
+              style: TextStyle(color: p.textSecondary, fontSize: 14),
             ),
           ),
         ],
       ),
     );
   }
-  final expected = attendance.expected;
-  final checkedIn = attendance.checkedIn;
-  final rate = expected == 0
-      ? 0.0
-      : (checkedIn / expected).clamp(0.0, 1.0).toDouble();
-  return Container(
-    padding: const EdgeInsets.all(20),
-    decoration: BoxDecoration(
-      color: p.surface,
-      borderRadius: BorderRadius.circular(24),
-      border: Border.all(color: p.border),
-      boxShadow: p.cardShadow,
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: p.primary.withValues(alpha: 0.10),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.insights_outlined, color: p.primary, size: 20),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Progression des arrivées',
-                    style: TextStyle(
-                      color: p.textPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '$checkedIn sur $expected invités enregistrés',
-                    style: TextStyle(color: p.textSecondary, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-            Text(
-              '${(rate * 100).round()}%',
-              style: TextStyle(
-                color: p.primary,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: LinearProgressIndicator(
-            value: rate,
-            minHeight: 10,
-            backgroundColor: p.border,
-            color: p.primary,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Présents : $checkedIn',
-              style: TextStyle(
-                color: AppColors.success,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            Text(
-              'Restants : ${attendance.remaining}',
-              style: TextStyle(
-                color: p.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ],
-    ),
-  );
 }
 
-/// Bandeau d'information : statistiques partiellement indisponibles.
+class _MiniStat extends StatelessWidget {
+  const _MiniStat({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.accent,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AgentPalette.of(context);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: p.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: accent, size: 20),
+          const SizedBox(height: 12),
+          Text(
+            value,
+            style: TextStyle(
+              color: p.textPrimary,
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              height: 1,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: p.textSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              height: 1.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AttendanceProgress extends StatelessWidget {
+  const _AttendanceProgress({required this.attendance, required this.palette});
+
+  final AttendanceStats? attendance;
+  final AgentPalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = palette;
+    if (attendance == null) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: p.surface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: p.border),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.insights_outlined, color: p.textSecondary, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Progression des arrivées indisponible pour votre rôle.',
+                style: TextStyle(color: p.textSecondary, fontSize: 13, height: 1.4),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final expected = attendance!.expected;
+    final checkedIn = attendance!.checkedIn;
+    final rate = expected == 0 ? 0.0 : (checkedIn / expected).clamp(0.0, 1.0).toDouble();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: p.border),
+        boxShadow: p.cardShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: p.primary.withValues(alpha: 0.10),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.insights_outlined, color: p.primary, size: 19),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Progression des arrivées',
+                      style: TextStyle(
+                        color: p.textPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      '$checkedIn sur $expected enregistrés',
+                      style: TextStyle(color: p.textSecondary, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: p.primary.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${(rate * 100).round()}%',
+                  style: TextStyle(
+                    color: p.primary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: LinearProgressIndicator(
+              value: rate,
+              minHeight: 10,
+              backgroundColor: p.border,
+              color: p.primary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Présents : $checkedIn',
+                style: TextStyle(
+                  color: AppColors.success,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                'Restants : ${attendance!.remaining}',
+                style: TextStyle(
+                  color: p.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _StatsWarning extends StatelessWidget {
   const _StatsWarning({required this.message});
 
@@ -400,25 +499,21 @@ class _StatsWarning extends StatelessWidget {
     final p = AgentPalette.of(context);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: p.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: p.border),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(Icons.info_outline, color: p.textSecondary, size: 18),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               message,
-              style: TextStyle(
-                color: p.textSecondary,
-                fontSize: 13,
-                height: 1.4,
-              ),
+              style: TextStyle(color: p.textSecondary, fontSize: 12, height: 1.4),
             ),
           ),
         ],
