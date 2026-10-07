@@ -7,7 +7,6 @@ import '../../../../src/checkin/checkin_offline_models.dart';
 import '../../../../src/checkin/checkin_providers.dart';
 import '../../../../src/theme/app_colors.dart';
 
-/// Écran de résultat d'un scan QR (succès / enregistrement d'entrée).
 class ScanResultScreen extends ConsumerStatefulWidget {
   const ScanResultScreen({
     super.key,
@@ -31,6 +30,11 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
   bool _recording = false;
   CheckInResult? _result;
   String? _error;
+  CheckInScan? _localScan;
+
+  CheckInScan get _scan {
+    return _localScan ?? widget.scan;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +51,7 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
   }
 
   Widget _buildScanInfo(AgentPalette p) {
-    final s = widget.scan;
+    final s = _scan;
     final success = s.canCheckIn && s.remainingAttendees > 0;
     final max = s.remainingAttendees > 0 ? s.remainingAttendees : 1;
 
@@ -285,6 +289,27 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
         if (!mounted) return;
         setState(() {
           _recording = false;
+          _localScan = CheckInScan(
+            guestName: widget.scan.guestName,
+            weddingDisplayName: widget.scan.weddingDisplayName,
+            invitationStatus: widget.scan.invitationStatus,
+            rsvpStatus: widget.scan.rsvpStatus,
+            expectedAttendees: widget.scan.expectedAttendees,
+            checkedInAttendees: widget.scan.checkedInAttendees + _attendees,
+            remainingAttendees: widget.scan.remainingAttendees - _attendees,
+            canCheckIn: widget.scan.remainingAttendees - _attendees > 0 &&
+                widget.scan.canCheckIn,
+            tableName: widget.scan.tableName,
+            drinkChoice: widget.scan.drinkChoice,
+            publicToken: widget.scan.publicToken,
+            invitationCode: widget.scan.invitationCode,
+            hasCard: widget.scan.hasCard,
+            checkedInAt: widget.scan.checkedInAt,
+            eventName: widget.scan.eventName,
+            eventDate: widget.scan.eventDate,
+            eventTime: widget.scan.eventTime,
+            eventVenue: widget.scan.eventVenue,
+          );
           _result = CheckInResult(
             guestName: widget.scan.guestName,
             checkedInAttendees: widget.scan.checkedInAttendees + _attendees,
