@@ -92,9 +92,9 @@ class AuthController extends Notifier<AuthState> {
       );
       return _applyLogin(json);
     } on DioException catch (error) {
-      return AuthResult.failure(_messageFromDio(error) ?? 'Erreur réseau : connexion impossible');
+      return AuthResult.failure(_messageFromDio(error) ?? 'Connexion impossible. Vérifiez vos identifiants et votre connexion internet.');
     } catch (_) {
-      return AuthResult.failure('Erreur réseau : connexion impossible');
+      return AuthResult.failure('Connexion impossible. Vérifiez votre connexion internet et réessayez.');
     }
   }
 
@@ -145,9 +145,18 @@ class AuthController extends Notifier<AuthState> {
   }
 
   String? _messageFromDio(DioException error) {
-    final data = error.response?.data;
-    if (data is Map && data['error'] != null) {
-      return data['error'].toString();
+    if (error.response?.data is Map && error.response?.data['error'] != null) {
+      return error.response!.data['error'].toString();
+    }
+    final type = error.type;
+    if (type == DioExceptionType.connectionTimeout ||
+        type == DioExceptionType.sendTimeout ||
+        type == DioExceptionType.receiveTimeout ||
+        type == DioExceptionType.connectionError) {
+      return 'Connexion impossible au serveur. Vérifiez votre connexion internet.';
+    }
+    if (type == DioExceptionType.cancel) {
+      return 'Requête annulée. Réessayez.';
     }
     return null;
   }
