@@ -16,6 +16,7 @@ import '../../../../src/wedding/wedding_api.dart';
 import '../../../../src/wedding/wedding_providers.dart';
 import '../widgets/agent_bottom_navigation.dart';
 import '../widgets/agent_header.dart';
+import '../widgets/event_card.dart';
 import '../widgets/guest_search_bar.dart';
 import '../widgets/scanner_action_card.dart';
 import 'agent_attendance_screen.dart';
@@ -41,6 +42,7 @@ class _AgentAccueilHomeScreenState
   String? _statsError;
   int? _presentFallback;
   int? _selectedWeddingId;
+  List<int>? _coverImageBytes;
 
   @override
   void initState() {
@@ -112,6 +114,21 @@ class _AgentAccueilHomeScreenState
       _statsError = statsError;
       _loading = false;
     });
+
+    if (_selectedWeddingId != null) {
+      try {
+        final bytes = await ref.read(weddingApiProvider).loadImage(_selectedWeddingId!);
+        if (!mounted) return;
+        setState(() {
+          _coverImageBytes = bytes;
+        });
+      } catch (_) {
+        if (!mounted) return;
+        setState(() {
+          _coverImageBytes = null;
+        });
+      }
+    }
   }
 
   Future<void> _selectWedding(int weddingId) async {
@@ -122,8 +139,21 @@ class _AgentAccueilHomeScreenState
       _dashboard = null;
       _presentFallback = null;
       _statsError = null;
+      _coverImageBytes = null;
     });
     await _loadStats(weddingId);
+    try {
+      final bytes = await ref.read(weddingApiProvider).loadImage(weddingId);
+      if (!mounted) return;
+      setState(() {
+        _coverImageBytes = bytes;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _coverImageBytes = null;
+      });
+    }
   }
 
   Future<void> _loadStats(int weddingId) async {
@@ -252,6 +282,26 @@ class _AgentAccueilHomeScreenState
             )
           else
             _EmptyEventCard(p: p),
+          const SizedBox(height: 18),
+          Builder(
+            builder: (context) {
+              Wedding? selected;
+              if (_weddings.isNotEmpty) {
+                try {
+                  selected = _weddings.firstWhere((w) => w.id == _selectedWeddingId);
+                } catch (_) {
+                  selected = _weddings.first;
+                }
+              }
+              return EventCard(
+                eventName: selected?.displayName,
+                venue: selected?.welcomeMessage,
+                dateLabel: selected?.description,
+                isActive: selected?.status == 'PUBLISHED',
+                coverImageBytes: _coverImageBytes,
+              );
+            },
+          ),
           const SizedBox(height: 20),
           ScannerActionCard(onTap: _openScanner),
           const SizedBox(height: 20),

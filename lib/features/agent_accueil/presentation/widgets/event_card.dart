@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import '../../../../src/theme/app_colors.dart';
@@ -10,6 +12,7 @@ class EventCard extends StatelessWidget {
     this.dateLabel,
     this.statusLabel,
     this.isActive = false,
+    this.coverImageBytes,
   });
 
   final String? eventName;
@@ -17,6 +20,7 @@ class EventCard extends StatelessWidget {
   final String? dateLabel;
   final String? statusLabel;
   final bool isActive;
+  final List<int>? coverImageBytes;
 
   @override
   Widget build(BuildContext context) {
@@ -132,13 +136,16 @@ class EventCard extends StatelessWidget {
             Container(
               width: 96,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [p.primary, p.primaryLight],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                color: p.border,
               ),
-              child: Icon(Icons.event_rounded, color: Colors.white.withValues(alpha: 0.92), size: 36),
+              child: coverImageBytes == null || coverImageBytes!.isEmpty
+                  ? Icon(Icons.event_rounded, color: Colors.white.withValues(alpha: 0.92), size: 36)
+                  : Image.memory(
+                      Uint8List.fromList(coverImageBytes!),
+                      fit: BoxFit.cover,
+                      width: 96,
+                      height: double.infinity,
+                    ),
             ),
           ],
         ),
