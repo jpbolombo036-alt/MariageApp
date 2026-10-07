@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../auth/auth_models.dart';
 import '../auth/auth_providers.dart';
@@ -143,6 +144,17 @@ class _CheckInScanPageState extends ConsumerState<CheckInScanPage> {
     });
   }
 
+  Future<void> _openCameraScan() async {
+    final token = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => _CameraScanScreen(weddingId: widget.weddingId),
+      ),
+    );
+    if (token == null || !token.trim().isNotEmpty) return;
+    _tokenController.text = token.trim();
+    await _doScan();
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authControllerProvider);
@@ -231,9 +243,22 @@ class _CheckInScanPageState extends ConsumerState<CheckInScanPage> {
               ),
             ),
             const SizedBox(height: 12),
-            FilledButton(
-              onPressed: _scanning ? null : _doScan,
-              child: Text(_offline ? 'Rechercher hors ligne' : 'Scanner / Vérifier'),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: _scanning ? null : _doScan,
+                    icon: const Icon(Icons.qr_code_scanner_outlined),
+                    label: Text(_offline ? 'Rechercher hors ligne' : 'Scanner / Vérifier'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                IconButton.filled(
+                  onPressed: _scanning ? null : _openCameraScan,
+                  icon: const Icon(Icons.camera_alt_outlined),
+                  tooltip: 'Scanner avec la caméra',
+                ),
+              ],
             ),
             const SizedBox(height: 20),
             _buildScanResult(),
@@ -302,12 +327,43 @@ class _CheckInScanPageState extends ConsumerState<CheckInScanPage> {
                   : "Enregistrer l'entrée",
             ),
           ),
-        ] else
-          Text(
-            'Impossible d’enregistrer (RSVP absent, annulé ou complet)',
-            style: TextStyle(color: Colors.orange),
-          ),
-      ],
+         ] else
+           Text(
+             'Impossible d’enregistrer (RSVP absent, annulé ou complet)',
+             style: TextStyle(color: Colors.orange),
+           ),
+       ],
+     );
+   }
+}
+
+class _CameraScanScreen extends StatefulWidget {
+  const _CameraScanScreen({required this.weddingId});
+
+  final int weddingId;
+
+  @override
+  State<_CameraScanScreen> createState() => _CameraScanScreenState();
+}
+
+class _CameraScanScreenState extends State<_CameraScanScreen> {
+  bool _handled = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Scanner QR')),
+      body: MobileScanner(
+        onDetect: (capture) {
+          if (_handled) return;
+          final code = capture.barcodes.firstOrNull?.rawValue;
+          if (code == null || code.isEmpty) return;
+          setState(() {
+            _handled = true;
+          });
+          Navigator.of(context).pop(code);
+        },
+      ),
     );
   }
 }
