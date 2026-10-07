@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -44,6 +46,7 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
   EventStatusFilter _filter = EventStatusFilter.active;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  Map<int, Uint8List?> _coverImages = const {};
 
   @override
   void initState() {
@@ -68,6 +71,18 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
       setState(() {
         _events = items;
         _loading = false;
+      });
+      final images = <int, Uint8List?>{};
+      for (final e in items) {
+        try {
+          images[e.id] = await ref.read(weddingApiProvider).loadImage(e.id);
+        } catch (_) {
+          images[e.id] = null;
+        }
+      }
+      if (!mounted) return;
+      setState(() {
+        _coverImages = Map<int, Uint8List?>.unmodifiable(images);
       });
     } catch (_) {
       if (!mounted) return;
@@ -694,6 +709,7 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
           event: e,
           onTap: () => _openDetail(e.id),
           onMenu: () => _showMenu(e),
+          coverImageBytes: _coverImages[e.id],
         );
       },
     );
@@ -853,11 +869,13 @@ class _EventCard extends ConsumerWidget {
     required this.event,
     required this.onTap,
     required this.onMenu,
+    this.coverImageBytes,
   });
 
   final Wedding event;
   final VoidCallback onTap;
   final VoidCallback onMenu;
+  final List<int>? coverImageBytes;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -881,7 +899,7 @@ class _EventCard extends ConsumerWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _EventCover(type: event.type),
+                _EventCover(type: event.type, coverImageBytes: coverImageBytes),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Column(
@@ -1157,66 +1175,56 @@ class _MetaLine extends StatelessWidget {
   }
 }
 
-/// Vignette carrée de l'événement (dégradé + pictogramme + libellé de type).
+/// Vignette carrée de l'événement (photo de couverture ou dégradé + pictogramme + libellé de type).
 class _EventCover extends StatelessWidget {
-  const _EventCover({required this.type});
+  const _EventCover({required this.type, this.coverImageBytes});
 
   final String type;
+  final List<int>? coverImageBytes;
 
   @override
   Widget build(BuildContext context) {
     final color = _eventTypeColor(type);
     final isWedding = type.toUpperCase() == 'WEDDING';
+    final hasImage = coverImageBytes != null && coverImageBytes!.isNotEmpty;
     return Container(
       width: 84,
       height: 84,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: _eventTypeGradient(type),
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: hasImage ? null : LinearGradient(colors: _eventTypeGradient(type), begin: Alignment.topLeft, end: Alignment.bottomRight),
         borderRadius: BorderRadius.circular(AppRadius.md),
+        image: hasImage ? DecorationImage(image: MemoryImage(Uint8List.fromList(coverImageBytes!)), fit: BoxFit.cover) : null,
       ),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: Center(
-              child: isWedding
-                  ? const Text('🎉', style: TextStyle(fontSize: 32))
-                  : Icon(_eventTypeIcon(type), size: 30, color: color),
-            ),
-          ),
-          Positioned(
-            left: 6,
-            right: 6,
-            bottom: 6,
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 6,
-                  vertical: 3,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  _eventTypeLabel(type),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 8.5,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.3,
-                    color: color,
+      child: hasImage
+          ? null
+          : Stack(
+              children: [
+                Positioned.fill(
+                  child: Center(
+                    child: isWedding
+                        ? const Text('🎉', style: TextStyle(fontSize: 32))
+                        : Icon(_eventTypeIcon(type), size: 30, color: color),
                   ),
                 ),
-              ),
+                Positioned(
+                  left: 6,
+                  right: 6,
+                  bottom: 6,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.all(Radius.circular(6))),
+                      child: Text(
+                        _eventTypeLabel(type),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w800, letterSpacing: 0.3, color: color),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }

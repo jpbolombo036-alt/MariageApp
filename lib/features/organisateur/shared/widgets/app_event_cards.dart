@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import '../../../../src/theme/app_theme.dart';
@@ -11,103 +13,130 @@ class AppCurrentEventCard extends StatelessWidget {
     this.date,
     this.venue,
     this.onDetails,
+    this.coverImageBytes,
   });
 
   final String name;
   final String? date;
   final String? venue;
   final VoidCallback? onDetails;
+  final List<int>? coverImageBytes;
 
   @override
   Widget build(BuildContext context) {
+    final hasImage = coverImageBytes != null && coverImageBytes!.isNotEmpty;
     return Container(
       height: 200,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppRadius.eventCard),
-        gradient: const LinearGradient(
-          colors: [OrganizerColors.primary, OrganizerColors.primaryDark],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: hasImage ? null : const LinearGradient(colors: [OrganizerColors.primary, OrganizerColors.primaryDark], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        image: hasImage ? DecorationImage(image: MemoryImage(Uint8List.fromList(coverImageBytes!)), fit: BoxFit.cover) : null,
       ),
-      child: Row(
-        children: [
-          // Partie gauche : contenu
-          Expanded(
-            flex: 6,
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Événement en cours',
-                    style: AppTypography.small(color: Colors.white70),
-                  ),
-                  const Spacer(),
-                  Text(
-                    name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                     style: AppTypography.cardTitle(
-                       color: Colors.white,
-                     ).copyWith(fontSize: 22),
-                  ),
-                  const SizedBox(height: 10),
-                  if (date != null) ...[
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
+      child: hasImage
+          ? Row(
+              children: [
+                Expanded(
+                  flex: 6,
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(colors: [Colors.transparent, Colors.black38], begin: Alignment.centerLeft, end: Alignment.centerRight),
+                    ),
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.calendar_today, size: 14, color: Colors.white70),
-                        const SizedBox(width: 6),
-                        Text(date!, style: AppTypography.small(color: Colors.white70)),
+                        Text('Événement en cours', style: AppTypography.small(color: Colors.white70)),
+                        const Spacer(),
+                        Text(name, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTypography.cardTitle(color: Colors.white).copyWith(fontSize: 22)),
+                        const SizedBox(height: 10),
+                        if (date != null) Row(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.calendar_today, size: 14, color: Colors.white70), const SizedBox(width: 6), Text(date!, style: AppTypography.small(color: Colors.white70))]),
+                        if (venue != null && venue!.isNotEmpty) ...[const SizedBox(height: 4), Row(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.location_on_outlined, size: 14, color: Colors.white70), const SizedBox(width: 6), Text(venue!, style: AppTypography.small(color: Colors.white70))])],
+                        const Spacer(),
+                        FilledButton(onPressed: onDetails, style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: OrganizerColors.primaryDark, minimumSize: const Size(120, 40)), child: const Text('Voir les détails')),
                       ],
                     ),
-                  ],
-                  if (venue != null && venue!.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.location_on_outlined, size: 14, color: Colors.white70),
-                        const SizedBox(width: 6),
-                        Text(venue!, style: AppTypography.small(color: Colors.white70)),
-                      ],
-                    ),
-                  ],
-                  const Spacer(),
-                  FilledButton(
-                    onPressed: onDetails,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: OrganizerColors.primaryDark,
-                      minimumSize: const Size(120, 40),
-                    ),
-                    child: const Text('Voir les détails'),
                   ),
-                ],
-              ),
-            ),
-          ),
-          // Partie droite : visuel représentatif
-          Expanded(
-            flex: 4,
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.transparent, Colors.black26],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
                 ),
-              ),
-              child: Center(
-                child: Text('✨', style: const TextStyle(fontSize: 48)),
-              ),
+              ],
+            )
+          : Row(
+              children: [
+                // Partie gauche : contenu
+                Expanded(
+                  flex: 6,
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Événement en cours',
+                          style: AppTypography.small(color: Colors.white70),
+                        ),
+                        const Spacer(),
+                        Text(
+                          name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                           style: AppTypography.cardTitle(
+                             color: Colors.white,
+                           ).copyWith(fontSize: 22),
+                        ),
+                        const SizedBox(height: 10),
+                        if (date != null) ...[
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.calendar_today, size: 14, color: Colors.white70),
+                              const SizedBox(width: 6),
+                              Text(date!, style: AppTypography.small(color: Colors.white70)),
+                            ],
+                          ),
+                        ],
+                        if (venue != null && venue!.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.location_on_outlined, size: 14, color: Colors.white70),
+                              const SizedBox(width: 6),
+                              Text(venue!, style: AppTypography.small(color: Colors.white70)),
+                            ],
+                          ),
+                        ],
+                        const Spacer(),
+                        FilledButton(
+                          onPressed: onDetails,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: OrganizerColors.primaryDark,
+                            minimumSize: const Size(120, 40),
+                          ),
+                          child: const Text('Voir les détails'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                // Partie droite : visuel représentatif
+                Expanded(
+                  flex: 4,
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.transparent, Colors.black26],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                      ),
+                    ),
+                    child: const Center(
+                      child: Text('✨', style: TextStyle(fontSize: 48)),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -123,6 +152,7 @@ class AppEventCard extends StatelessWidget {
     this.statusBg = OrganizerColors.successBg,
     this.onTap,
     this.onMenu,
+    this.coverImageBytes,
   });
 
   final String name;
@@ -133,10 +163,12 @@ class AppEventCard extends StatelessWidget {
   final Color statusBg;
   final VoidCallback? onTap;
   final VoidCallback? onMenu;
+  final List<int>? coverImageBytes;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final hasImage = coverImageBytes != null && coverImageBytes!.isNotEmpty;
     return Material(
       color: scheme.surface,
       borderRadius: BorderRadius.circular(AppRadius.card),
@@ -156,16 +188,11 @@ class AppEventCard extends StatelessWidget {
               Container(
                 width: 104,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [OrganizerColors.primary, OrganizerColors.accent],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  gradient: hasImage ? null : const LinearGradient(colors: [OrganizerColors.primary, OrganizerColors.accent], begin: Alignment.topLeft, end: Alignment.bottomRight),
                   borderRadius: BorderRadius.circular(AppRadius.small),
+                  image: hasImage ? DecorationImage(image: MemoryImage(Uint8List.fromList(coverImageBytes!)), fit: BoxFit.cover) : null,
                 ),
-                child: Center(
-                child: Text('✨', style: const TextStyle(fontSize: 40)),
-                ),
+                child: hasImage ? null : Center(child: Text('✨', style: const TextStyle(fontSize: 40))),
               ),
               const SizedBox(width: 14),
               // Contenu à droite

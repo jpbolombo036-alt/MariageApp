@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -22,6 +24,7 @@ class _EvenementsListScreenState extends ConsumerState<EvenementsListScreen> {
   bool _loading = true;
   String? _error;
   List<Wedding> _events = const [];
+  Map<int, Uint8List?> _coverImages = const {};
 
   @override
   void initState() {
@@ -40,6 +43,18 @@ class _EvenementsListScreenState extends ConsumerState<EvenementsListScreen> {
       setState(() {
         _events = items;
         _loading = false;
+      });
+      final images = <int, Uint8List?>{};
+      for (final e in items) {
+        try {
+          images[e.id] = await ref.read(weddingApiProvider).loadImage(e.id);
+        } catch (_) {
+          images[e.id] = null;
+        }
+      }
+      if (!mounted) return;
+      setState(() {
+        _coverImages = Map<int, Uint8List?>.unmodifiable(images);
       });
     } catch (_) {
       if (!mounted) return;
@@ -114,6 +129,7 @@ class _EvenementsListScreenState extends ConsumerState<EvenementsListScreen> {
               ),
             ),
             onMenu: () => _showMenu(e),
+            coverImageBytes: _coverImages[e.id],
           );
         },
       ),
