@@ -180,6 +180,23 @@ class AdminApi {
     );
   }
 
+  /// Met à jour le rôle et/ou le mariage d'un membre (rôle ORGANISATEUR).
+  Future<OrgMember> updateMember(
+    int organizationId,
+    int memberId, {
+    String? roleCode,
+    int? weddingId,
+  }) async {
+    final json = await api.putJson(
+      '${ApiConfig.organizationsPath}/$organizationId/members/$memberId',
+      {
+        if (roleCode != null) 'roleCode': roleCode,
+        if (weddingId != null) 'weddingId': weddingId,
+      },
+    );
+    return OrgMember.fromJson(json);
+  }
+
   Future<void> removeMember(int organizationId, int memberId) async {
     await api.deleteRequest(
       '${ApiConfig.organizationsPath}/$organizationId/members/$memberId',

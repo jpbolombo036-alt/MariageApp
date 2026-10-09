@@ -115,6 +115,79 @@ class _CreateUserScreenState extends ConsumerState<CreateUserScreen> {
     }
   }
 
+  Future<void> _changeRole(OrgMember member) async {
+    final orgId = ref.read(authControllerProvider).user?.organizationId;
+    if (orgId == null) return;
+    final newRoleCode = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Nouveau rôle'),
+        children: [
+          for (final (code, label) in kOrganizerRoles)
+            SimpleDialogOption(
+              child: Text(label),
+              onPressed: () => Navigator.of(ctx).pop(code),
+            ),
+        ],
+      ),
+    );
+    if (newRoleCode == null || !mounted) return;
+    if (newRoleCode != member.roleCode && _roleRequiresWedding(newRoleCode)) {
+      final weddingId = await _selectWedding();
+      if (weddingId == null) return;
+      try {
+        await ref.read(adminApiProvider).updateMember(
+          orgId,
+          member.id,
+          roleCode: newRoleCode,
+          weddingId: weddingId,
+        );
+        await _loadMembers();
+      } catch (error) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_messageOf(error))));
+      }
+    } else {
+      try {
+        await ref.read(adminApiProvider).updateMember(
+          orgId,
+          member.id,
+          roleCode: newRoleCode,
+          weddingId: _roleRequiresWedding(newRoleCode) ? null : member.weddingId,
+        );
+        await _loadMembers();
+      } catch (error) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_messageOf(error))));
+      }
+    }
+  }
+
+  bool _roleRequiresWedding(String roleCode) {
+    return roleCode == 'GESTIONNAIRE_INVITES' || roleCode == 'AGENT_ACCUEIL';
+  }
+
+  Future<int?> _selectWedding() {
+    if (_events.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Créez d’abord un événement pour y affecter un agent')));
+      return Future.value(null);
+    }
+    return showDialog<int>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Événement de l’agent'),
+        children: [
+          for (final event in _events)
+            SimpleDialogOption(
+              child: Text(event.displayName),
+              onPressed: () => Navigator.of(ctx).pop(event.id),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _firstName.dispose();
@@ -244,6 +317,11 @@ class _CreateUserScreenState extends ConsumerState<CreateUserScreen> {
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        IconButton(
+                          tooltip: 'Modifier le rôle',
+                          icon: const Icon(Icons.edit_outlined),
+                          onPressed: () => _changeRole(member),
+                        ),
                         if (member.roleCode == 'AGENT_ACCUEIL')
                           IconButton(
                             tooltip: 'Changer d’événement',
