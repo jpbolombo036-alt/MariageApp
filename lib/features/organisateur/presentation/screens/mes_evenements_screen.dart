@@ -1,4 +1,4 @@
-﻿// Accueil organisateur - reproduction de la maquette Accueil_organisateur
+// Accueil organisateur - reproduction de la maquette Accueil_organisateur
 // (theme nuit premium, fond #0A0A1F, degards violets). Logique inchangee :
 // chargement evenements + couvertures, filtres, recherche, tri, revision.
 import 'dart:typed_data';
@@ -16,19 +16,37 @@ import '../../shared/widgets/app_organizer_bottom_nav.dart';
 import 'evenement_create_stepper_screen.dart';
 import 'evenement_detail_screen.dart';
 
-/// Palette de la maquette (nuit violet).
-abstract final class HomePalette {
-  static const bg = Color(0xFF0A0A1F);
-  static const card = Color(0xFF12122A);
-  static const tile = Color(0xFF191933);
-  static const chip = Color(0xFF15152E);
-  static const border = Color(0x14FFFFFF); // blanc ~8 %
+/// Palette thématisée : déclinaison de la maquette en nuit ET en clair.
+/// Les accents de marque (violet, vert, ambre, bleu) restent constants.
+class HomePalette {
+  const HomePalette({
+    required this.bg,
+    required this.card,
+    required this.tile,
+    required this.chip,
+    required this.border,
+    required this.text,
+    required this.text2,
+    required this.text3,
+  });
+
+  /// Palette du thème courant (sombre = maquette, clair = violette douce).
+  factory HomePalette.of(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? dark : light;
+
+  final Color bg;
+  final Color card;
+  final Color tile;
+  final Color chip;
+  final Color border;
+  final Color text;
+  final Color text2;
+  final Color text3;
+
+  /// Accents de marque — identiques dans les deux thèmes.
   static const purple = Color(0xFF8B5CF6);
   static const purpleDeep = Color(0xFF6D28D9);
   static const purpleLight = Color(0xFFA78BFA);
-  static const text = Color(0xFFF4F4FA);
-  static const text2 = Color(0xFF9A9AB5);
-  static const text3 = Color(0xFF6E6E8C);
   static const green = Color(0xFF10B981);
   static const amber = Color(0xFFF59E0B);
   static const blue = Color(0xFF3B82F6);
@@ -39,6 +57,30 @@ abstract final class HomePalette {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
+
+  /// Nuit — la maquette de référence.
+  static const dark = HomePalette(
+    bg: Color(0xFF0A0A1F),
+    card: Color(0xFF12122A),
+    tile: Color(0xFF191933),
+    chip: Color(0xFF15152E),
+    border: Color(0x14FFFFFF),
+    text: Color(0xFFF4F4FA),
+    text2: Color(0xFF9A9AB5),
+    text3: Color(0xFF6E6E8C),
+  );
+
+  /// Clair — mêmes formes, surfaces blanches et textes violet profond.
+  static const light = HomePalette(
+    bg: Color(0xFFF6F4FD),
+    card: Color(0xFFFFFFFF),
+    tile: Color(0xFFF1EDFB),
+    chip: Color(0xFFF3F0FB),
+    border: Color(0xFFE4DFF6),
+    text: Color(0xFF1A1430),
+    text2: Color(0xFF57506E),
+    text3: Color(0xFF8B84A3),
+  );
 }
 
 enum EventStatusFilter { all, upcoming, active, past, draft }
@@ -46,9 +88,9 @@ enum EventStatusFilter { all, upcoming, active, past, draft }
 extension EventStatusFilterLabel on EventStatusFilter {
   String get label => switch (this) {
     EventStatusFilter.all => 'Tous',
-    EventStatusFilter.upcoming => 'Ã€ venir',
+    EventStatusFilter.upcoming => 'À venir',
     EventStatusFilter.active => 'En cours',
-    EventStatusFilter.past => 'PassÃ©s',
+    EventStatusFilter.past => 'Passés',
     EventStatusFilter.draft => 'Brouillons',
   };
 }
@@ -56,8 +98,8 @@ extension EventStatusFilterLabel on EventStatusFilter {
 class MesEvenementsScreen extends ConsumerStatefulWidget {
   const MesEvenementsScreen({super.key, this.embedded = false});
 
-  /// Quand `true`, l'Ã©cran est intÃ©grÃ© comme onglet (Accueil) : on retire la
-  /// barre de navigation propre Ã  cet Ã©cran (celle du parent suffit).
+  /// Quand `true`, l'écran est intégré comme onglet (Accueil) : on retire la
+  /// barre de navigation propre à cet écran (celle du parent suffit).
   final bool embedded;
 
   @override
@@ -114,11 +156,11 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Impossible de charger les Ã©vÃ©nements';
+        _error = 'Impossible de charger les événements';
       });
     }
   }
-  /// Un Ã©vÃ©nement est Â« passÃ© Â» s'il est terminÃ©/archivÃ© ou datÃ© d'hier.
+  /// Un événement est « passé » s'il est terminé/archivé ou daté d'hier.
   bool _isPast(Wedding e) {
     final s = e.status.toUpperCase();
     if (s == 'COMPLETED' || s == 'ARCHIVED') return true;
@@ -132,20 +174,32 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
     return DateTime(parsed.year, parsed.month, parsed.day).isBefore(today);
   }
 
+  /// « En cours » : statut ACTIVE, ou date d'aujourd'hui (tant que le cron
+  /// backend n'a pas basculé le statut). Un événement publié pour aujourd'hui
+  /// est donc bien affiché En cours — et non À venir.
+  bool _isOngoing(Wedding e) {
+    final s = e.status.toUpperCase();
+    if (s == 'ACTIVE') return true;
+    if (_isPast(e) || s == 'DRAFT' || s == 'CANCELLED') return false;
+    final raw = e.eventDate;
+    if (raw == null || raw.isEmpty) return false;
+    final d = DateTime.tryParse(raw);
+    if (d == null) return false;
+    final now = DateTime.now();
+    return d.year == now.year && d.month == now.month && d.day == now.day;
+  }
+
   bool _matchesFilter(Wedding e) {
     final status = e.status.toUpperCase();
     switch (_filter) {
       case EventStatusFilter.active:
-        return status == 'ACTIVE' || status == 'PUBLISHED';
+        return _isOngoing(e);
       case EventStatusFilter.draft:
         return status == 'DRAFT';
       case EventStatusFilter.past:
         return _isPast(e);
       case EventStatusFilter.upcoming:
-        return !_isPast(e) &&
-            status != 'ACTIVE' &&
-            status != 'PUBLISHED' &&
-            status != 'DRAFT';
+        return !_isPast(e) && !_isOngoing(e) && status != 'DRAFT';
       case EventStatusFilter.all:
         return true;
     }
@@ -172,20 +226,12 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
   }
 
   int get _totalCount => _events.length;
-  int get _activeCount => _events
-      .where((e) {
-        final s = e.status.toUpperCase();
-        return s == 'ACTIVE' || s == 'PUBLISHED';
-      })
-      .length;
+  int get _activeCount => _events.where(_isOngoing).length;
   int get _pastCount => _events.where(_isPast).length;
-  int get _upcomingCount => _events.where((e) {
-        final s = e.status.toUpperCase();
-        return !_isPast(e) &&
-            s != 'ACTIVE' &&
-            s != 'PUBLISHED' &&
-            s != 'DRAFT';
-      }).length;
+  int get _upcomingCount => _events
+      .where((e) =>
+          !_isPast(e) && !_isOngoing(e) && e.status.toUpperCase() != 'DRAFT')
+      .length;
 
   Future<void> _openCreate() async {
     final created = await Navigator.of(context).push<bool>(
@@ -209,16 +255,19 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
     });
     final auth = ref.watch(authControllerProvider);
     final canCreate = auth.hasPermission(PermissionCodes.weddingCreate);
+    final p = HomePalette.of(context);
 
     return Scaffold(
-      backgroundColor: HomePalette.bg,
+      backgroundColor: p.bg,
       body: SafeArea(
         child: Column(
           children: [
+            // En-tête FIXE (hors défilement) : salutation + cloche.
+            _buildFixedHeader(auth.user?.firstName ?? ''),
             Expanded(
               child: RefreshIndicator(
                 color: HomePalette.purple,
-                backgroundColor: HomePalette.card,
+                backgroundColor: p.card,
                 onRefresh: _load,
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
@@ -226,9 +275,7 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildHeader(auth.user?.firstName ?? ''),
-                      _buildGreeting(auth.user?.firstName),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 16),
                       _buildSearchBar(),
                       const SizedBox(height: 16),
                       _buildFilterChips(),
@@ -291,67 +338,48 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
   }
 
   // ---------------------------------------------------------------- header --
-  Widget _buildHeader(String firstName) {
+  /// En-tête FIXE (hors défilement) : salutation à gauche, cloche à droite.
+  Widget _buildFixedHeader(String firstName) {
+    final p = HomePalette.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              gradient: HomePalette.purpleGradient,
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x557C3AED),
-                  blurRadius: 14,
-                  offset: Offset(0, 5),
-                ),
-              ],
-            ),
-            child:
-                const Icon(Icons.event_available_rounded, color: Colors.white, size: 26),
-          ),
-          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                RichText(
-                  text: TextSpan(
-                    style: GoogleFonts.poppins(
-                      fontSize: 23,
-                      fontWeight: FontWeight.w800,
-                      color: HomePalette.text,
-                      letterSpacing: -0.3,
-                    ),
-                    children: const [
-                      TextSpan(text: 'Eventia'),
-                      TextSpan(
-                        text: 'Easy',
-                        style: TextStyle(color: HomePalette.purpleLight),
-                      ),
-                    ],
+                Text(
+                  'Bonjour, ${firstName.isNotEmpty ? firstName : 'Organisateur'} 👋',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.poppins(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: p.text,
+                    letterSpacing: -0.4,
                   ),
                 ),
-                const SizedBox(height: 1),
+                const SizedBox(height: 2),
                 Text(
-                  'CrÃ©ez â€¢ Invitez â€¢ Partagez',
+                  'Vos événements, en toute simplicité',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
-                    fontSize: 11.5,
+                    fontSize: 12.5,
                     fontWeight: FontWeight.w500,
-                    color: HomePalette.text3,
+                    color: p.text3,
                   ),
                 ),
               ],
             ),
           ),
+          const SizedBox(width: 12),
           Stack(
             clipBehavior: Clip.none,
             children: [
-              const Icon(Icons.notifications_none_rounded,
-                  color: HomePalette.text2, size: 27),
+              Icon(Icons.notifications_none_rounded, color: p.text2, size: 27),
               Positioned(
                 top: 2,
                 right: 3,
@@ -366,115 +394,26 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
               ),
             ],
           ),
-          const SizedBox(width: 16),
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: HomePalette.purpleLight, width: 2),
-              gradient: HomePalette.purpleGradient,
-            ),
-            child: Center(
-              child: Text(
-                firstName.isNotEmpty ? firstName[0].toUpperCase() : 'O',
-                style: GoogleFonts.poppins(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  // -------------------------------------------------------------- greeting --
-  Widget _buildGreeting(String? firstName) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Bonjour,',
-                  style: GoogleFonts.poppins(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: HomePalette.text2,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${firstName ?? 'Organisateur'} ðŸ‘‹',
-                  style: GoogleFonts.poppins(
-                    fontSize: 23,
-                    fontWeight: FontWeight.w800,
-                    color: HomePalette.text,
-                    letterSpacing: -0.4,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  'Vos Ã©vÃ©nements, en toute simplicitÃ©',
-                  style: GoogleFonts.poppins(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w500,
-                    color: HomePalette.text3,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Transform.rotate(
-              angle: -0.09,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    'Des moments\nqui comptent !',
-                    textAlign: TextAlign.right,
-                    style: GoogleFonts.greatVibes(
-                      fontSize: 21,
-                      height: 1.05,
-                      color: HomePalette.purpleLight,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  CustomPaint(
-                    size: const Size(96, 8),
-                    painter: _SwooshPainter(HomePalette.purple),
-                  ),
-                ],
-              ),
-            ),
-          ),
         ],
       ),
     );
   }
   // ---------------------------------------------------------------- search --
   Widget _buildSearchBar() {
+    final p = HomePalette.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
         height: 54,
         decoration: BoxDecoration(
-          color: HomePalette.chip,
+          color: p.chip,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: HomePalette.border),
+          border: Border.all(color: p.border),
         ),
         child: Row(
           children: [
             const SizedBox(width: 16),
-            const Icon(Icons.search_rounded, color: HomePalette.text3, size: 22),
+            Icon(Icons.search_rounded, color: p.text3, size: 22),
             const SizedBox(width: 10),
             Expanded(
               child: TextField(
@@ -482,24 +421,23 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
                 onChanged: (v) => setState(() => _searchQuery = v),
                 style: GoogleFonts.poppins(
                   fontSize: 13.5,
-                  color: HomePalette.text,
+                  color: p.text,
                 ),
                 cursorColor: HomePalette.purple,
                 decoration: InputDecoration(
                   border: InputBorder.none,
                   isDense: true,
-                  hintText: 'Rechercher un Ã©vÃ©nement...',
+                  hintText: 'Rechercher un événement...',
                   hintStyle: GoogleFonts.poppins(
                     fontSize: 13.5,
-                    color: HomePalette.text3,
+                    color: p.text3,
                   ),
                 ),
               ),
             ),
             if (_searchQuery.isNotEmpty)
               IconButton(
-                icon: const Icon(Icons.close_rounded,
-                    size: 18, color: HomePalette.text3),
+                icon: Icon(Icons.close_rounded, size: 18, color: p.text3),
                 onPressed: () {
                   _searchController.clear();
                   setState(() => _searchQuery = '');
@@ -524,6 +462,7 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
 
   // ----------------------------------------------------------------- chips --
   Widget _buildFilterChips() {
+    final p = HomePalette.of(context);
     const filters = [
       EventStatusFilter.all,
       EventStatusFilter.upcoming,
@@ -547,10 +486,10 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 18),
               decoration: BoxDecoration(
                 gradient: selected ? HomePalette.purpleGradient : null,
-                color: selected ? null : HomePalette.chip,
+                color: selected ? null : p.chip,
                 borderRadius: BorderRadius.circular(22),
                 border: Border.all(
-                  color: selected ? Colors.transparent : HomePalette.border,
+                  color: selected ? Colors.transparent : p.border,
                 ),
                 boxShadow: selected
                     ? const [
@@ -570,12 +509,10 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
                         size: 16, color: Colors.white),
                     const SizedBox(width: 6),
                   ] else if (f == EventStatusFilter.upcoming) ...[
-                    const Icon(Icons.event_rounded,
-                        size: 15, color: HomePalette.text2),
+                    Icon(Icons.event_rounded, size: 15, color: p.text2),
                     const SizedBox(width: 6),
                   ] else if (f == EventStatusFilter.past) ...[
-                    const Icon(Icons.schedule_rounded,
-                        size: 15, color: HomePalette.text2),
+                    Icon(Icons.schedule_rounded, size: 15, color: p.text2),
                     const SizedBox(width: 6),
                   ],
                   Text(
@@ -583,7 +520,7 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
                     style: GoogleFonts.poppins(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: selected ? Colors.white : HomePalette.text2,
+                      color: selected ? Colors.white : p.text2,
                     ),
                   ),
                 ],
@@ -596,13 +533,14 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
   }
   // ------------------------------------------------------ overview (stats) --
   Widget _buildOverviewCard() {
+    final p = HomePalette.of(context);
     return GestureDetector(
       onTap: () => setState(() => _filter = EventStatusFilter.all),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 20),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: HomePalette.card,
+          color: p.card,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: HomePalette.purple.withValues(alpha: 0.35),
@@ -636,26 +574,27 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Mes Ã©vÃ©nements',
+                        'Mes événements',
                         style: GoogleFonts.poppins(
                           fontSize: 15.5,
                           fontWeight: FontWeight.w700,
-                          color: HomePalette.text,
+                          color: p.text,
                         ),
                       ),
                       const SizedBox(height: 1),
                       Text(
-                        'AperÃ§u rapide de votre activitÃ©',
+                        'Aperçu rapide de votre activité',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.poppins(
                           fontSize: 11,
-                          color: HomePalette.text3,
+                          color: p.text3,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right_rounded,
-                    color: HomePalette.text2, size: 26),
+                Icon(Icons.chevron_right_rounded, color: p.text2, size: 26),
               ],
             ),
             const SizedBox(height: 14),
@@ -679,14 +618,14 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
                   icon: Icons.schedule_rounded,
                   color: HomePalette.amber,
                   value: '$_upcomingCount',
-                  label: 'Ã€ venir',
+                  label: 'À venir',
                 ),
                 const SizedBox(width: 8),
                 _OverviewTile(
                   icon: Icons.inventory_2_outlined,
                   color: HomePalette.blue,
                   value: '$_pastCount',
-                  label: 'PassÃ©s',
+                  label: 'Passés',
                 ),
               ],
             ),
@@ -697,17 +636,22 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
   }
   // ---------------------------------------------------------- list header --
   Widget _buildListHeader() {
+    final p = HomePalette.of(context);
     final events = _filteredEvents;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
-          Text(
-            'Liste des Ã©vÃ©nements',
-            style: GoogleFonts.poppins(
-              fontSize: 16.5,
-              fontWeight: FontWeight.w800,
-              color: HomePalette.text,
+          Flexible(
+            child: Text(
+              'Liste des événements',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.poppins(
+                fontSize: 16.5,
+                fontWeight: FontWeight.w800,
+                color: p.text,
+              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -729,39 +673,36 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
           const Spacer(),
           PopupMenuButton<String>(
             tooltip: 'Trier par',
-            onSelected: (v) =>
-                setState(() => _sortDateDesc = v == 'date_desc'),
-            color: HomePalette.tile,
+            onSelected: (v) => setState(() => _sortDateDesc = v == 'date_desc'),
+            color: p.tile,
             icon: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.sort_rounded,
-                    size: 16, color: HomePalette.text2),
+                Icon(Icons.sort_rounded, size: 16, color: p.text2),
                 const SizedBox(width: 4),
                 Text(
                   'Trier par',
                   style: GoogleFonts.poppins(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: HomePalette.text2,
+                    color: p.text2,
                   ),
                 ),
-                const Icon(Icons.expand_more_rounded,
-                    size: 18, color: HomePalette.text2),
+                Icon(Icons.expand_more_rounded, size: 18, color: p.text2),
               ],
             ),
             itemBuilder: (_) => [
               PopupMenuItem(
                 value: 'date_desc',
-                child: Text('Date (rÃ©cent â†’ ancien)',
-                    style: GoogleFonts.poppins(
-                        fontSize: 12.5, color: HomePalette.text)),
+                child: Text('Date (récent → ancien)',
+                    style:
+                        GoogleFonts.poppins(fontSize: 12.5, color: p.text)),
               ),
               PopupMenuItem(
                 value: 'date_asc',
-                child: Text('Date (ancien â†’ rÃ©cent)',
-                    style: GoogleFonts.poppins(
-                        fontSize: 12.5, color: HomePalette.text)),
+                child: Text('Date (ancien → récent)',
+                    style:
+                        GoogleFonts.poppins(fontSize: 12.5, color: p.text)),
               ),
             ],
           ),
@@ -791,18 +732,22 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
   }
 
   (String, Color) _statusInfo(Wedding e) {
+    // Priorité aux dates : passé si date dépassée, en cours si aujourd'hui ou
+    // statut ACTIVE, sinon à venir (publié mais pas encore commencé).
+    if (_isPast(e)) return ('Passé', HomePalette.blue);
     final s = e.status.toUpperCase();
-    if (s == 'ACTIVE') return ('En cours', HomePalette.purple);
-    if (s == 'DRAFT') return ('Brouillon', HomePalette.text2);
-    if (_isPast(e)) return ('PassÃ©', HomePalette.blue);
-    return ('Ã€ venir', HomePalette.amber);
+    if (s == 'DRAFT') {
+      return ('Brouillon', HomePalette.of(context).text2);
+    }
+    if (_isOngoing(e)) return ('En cours', HomePalette.purple);
+    return ('À venir', HomePalette.amber);
   }
 
   String _typeLabel(String type) => switch (type.toUpperCase()) {
     'WEDDING' => 'Mariage',
     'COLLATION' => 'Collation',
     'ANNIVERSARY' => 'Anniversaire',
-    'BAPTISM' => 'BaptÃªme',
+    'BAPTISM' => 'Baptême',
     'GRADUATION' => 'Graduation',
     _ => 'Autre',
   };
@@ -821,11 +766,12 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
     'ANNIVERSARY' => HomePalette.amber,
     'BAPTISM' => HomePalette.blue,
     'GRADUATION' => HomePalette.green,
-    _ => HomePalette.text2,
+    _ => HomePalette.of(context).text2,
   };
 
   // ---------------------------------------------------------------- states --
   Widget _buildSkeleton() {
+    final p = HomePalette.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
@@ -836,7 +782,7 @@ class _MesEvenementsScreenState extends ConsumerState<MesEvenementsScreen> {
             height: 150,
             margin: const EdgeInsets.only(bottom: 14),
             decoration: BoxDecoration(
-              color: HomePalette.card,
+              color: p.card,
               borderRadius: BorderRadius.circular(18),
             ),
           ),
@@ -933,14 +879,15 @@ class _EventDarkCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final (statusLabel, statusColor) = statusInfo;
     final isActive = statusLabel == 'En cours';
+    final p = HomePalette.of(context);
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: HomePalette.card,
+          color: p.card,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: HomePalette.border),
+          border: Border.all(color: p.border),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1015,16 +962,16 @@ class _EventDarkCard extends ConsumerWidget {
                                 style: GoogleFonts.poppins(
                                   fontSize: 14.5,
                                   fontWeight: FontWeight.w700,
-                                  color: HomePalette.text,
+                                  color: p.text,
                                   height: 1.25,
                                 ),
                               ),
                             ),
                             PopupMenuButton<String>(
                               tooltip: 'Actions',
-                              color: HomePalette.tile,
-                              icon: const Icon(Icons.more_vert_rounded,
-                                  size: 20, color: HomePalette.text3),
+                              color: p.tile,
+                              icon: Icon(Icons.more_vert_rounded,
+                                  size: 20, color: p.text3),
                               onSelected: (_) => onTap(),
                               itemBuilder: (_) => [
                                 PopupMenuItem(
@@ -1032,7 +979,7 @@ class _EventDarkCard extends ConsumerWidget {
                                   child: Text('Détails',
                                       style: GoogleFonts.poppins(
                                           fontSize: 12.5,
-                                          color: HomePalette.text)),
+                                          color: p.text)),
                                 ),
                               ],
                             ),
@@ -1045,14 +992,17 @@ class _EventDarkCard extends ConsumerWidget {
                             icon: Icons.location_on_outlined,
                             text: _venueLabel()),
                         const SizedBox(height: 8),
-                        Row(
+                        // Wrap : les puces passent à la ligne au lieu de
+                        // déborder sur les petits écrans.
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
                           children: [
                             _TypePill(
                               icon: typeIcon,
                               label: typeLabel,
                               color: typeColor,
                             ),
-                            const SizedBox(width: 8),
                             _GuestCountPill(eventId: wedding.id),
                           ],
                         ),
@@ -1060,8 +1010,8 @@ class _EventDarkCard extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: 2),
-                  const Icon(Icons.chevron_right_rounded,
-                      size: 24, color: HomePalette.text3),
+                  Icon(Icons.chevron_right_rounded,
+                      size: 24, color: p.text3),
                 ],
               ),
             ),
@@ -1085,10 +1035,10 @@ class _MetaLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = HomePalette.of(context);
     return Row(
-
       children: [
-        Icon(icon, size: 13, color: HomePalette.text3),
+        Icon(icon, size: 13, color: p.text3),
         const SizedBox(width: 5),
         Expanded(
           child: Text(
@@ -1098,7 +1048,7 @@ class _MetaLine extends StatelessWidget {
             style: GoogleFonts.poppins(
               fontSize: 11.5,
               fontWeight: FontWeight.w500,
-              color: HomePalette.text2,
+              color: p.text2,
             ),
           ),
         ),
@@ -1106,7 +1056,7 @@ class _MetaLine extends StatelessWidget {
     );
   }
 }
-/// Puce Â« Mariage Â» (fond teintÃ© + icÃ´ne + libellÃ© colorÃ©).
+/// Puce « Mariage » (fond teinté + icône + libellé coloré).
 class _TypePill extends StatelessWidget {
   const _TypePill({required this.icon, required this.label, required this.color});
 
@@ -1141,7 +1091,7 @@ class _TypePill extends StatelessWidget {
   }
 }
 
-/// Puce Â« 120 invitÃ©s Â» (fond neutre + icÃ´ne groupe).
+/// Puce « 120 invités » (fond neutre + icône groupe).
 class _GuestCountPill extends ConsumerWidget {
   const _GuestCountPill({required this.eventId});
 
@@ -1149,25 +1099,28 @@ class _GuestCountPill extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final p = HomePalette.of(context);
     final stats = ref.watch(eventDashboardProvider(eventId));
     final total = stats.valueOrNull?.invitations.total ?? 0;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: HomePalette.tile,
+        color: p.tile,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.group_outlined, size: 13, color: HomePalette.text2),
+          Icon(Icons.group_outlined, size: 13, color: p.text2),
           const SizedBox(width: 5),
           Text(
-            '$total invitÃ©${total > 1 ? 's' : ''}',
+            '$total invité${total > 1 ? 's' : ''}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: GoogleFonts.poppins(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: HomePalette.text2,
+              color: p.text2,
             ),
           ),
         ],
@@ -1176,7 +1129,7 @@ class _GuestCountPill extends ConsumerWidget {
   }
 }
 
-/// Pied de carte Â« 4 / 10 confirmÃ©s Â» + barre de progression + Â« 40 % Â».
+/// Pied de carte « 4 / 10 confirmés » + barre de progression + « 40 % ».
 class _ConfirmFooter extends ConsumerWidget {
   const _ConfirmFooter({required this.eventId});
 
@@ -1184,6 +1137,7 @@ class _ConfirmFooter extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final p = HomePalette.of(context);
     final stats = ref.watch(eventDashboardProvider(eventId));
     final data = stats.valueOrNull;
     final confirmed = data?.invitations.accepted ?? 0;
@@ -1201,19 +1155,23 @@ class _ConfirmFooter extends ConsumerWidget {
             child: LinearProgressIndicator(
               value: ratio,
               minHeight: 7,
-              backgroundColor: HomePalette.tile,
+              backgroundColor: p.tile,
               valueColor: const AlwaysStoppedAnimation(HomePalette.purple),
             ),
           ),
           const SizedBox(height: 6),
           Row(
             children: [
-              Text(
-                '$confirmed / $total confirmÃ©s',
-                style: GoogleFonts.poppins(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: HomePalette.text2,
+              Flexible(
+                child: Text(
+                  '$confirmed / $total confirmés',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.poppins(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: p.text2,
+                  ),
                 ),
               ),
               const Spacer(),
@@ -1232,7 +1190,7 @@ class _ConfirmFooter extends ConsumerWidget {
     );
   }
 }
-/// Tuile de la carte Â« Mes Ã©vÃ©nements Â» (icÃ´ne ronde + valeur + libellÃ©).
+/// Tuile de la carte « Mes événements » (icône ronde + valeur + libellé).
 class _OverviewTile extends StatelessWidget {
   const _OverviewTile({
     required this.icon,
@@ -1248,6 +1206,7 @@ class _OverviewTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = HomePalette.of(context);
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 6),
@@ -1273,18 +1232,19 @@ class _OverviewTile extends StatelessWidget {
               style: GoogleFonts.poppins(
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
-                color: HomePalette.text,
+                color: p.text,
               ),
             ),
             const SizedBox(height: 1),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.poppins(
-                fontSize: 9.5,
-                fontWeight: FontWeight.w600,
-                color: HomePalette.text2,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                style: GoogleFonts.poppins(
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w600,
+                  color: p.text2,
+                ),
               ),
             ),
           ],
@@ -1294,7 +1254,7 @@ class _OverviewTile extends StatelessWidget {
   }
 }
 
-/// Ã‰tat centrÃ© (erreur / vide / aucun rÃ©sultat).
+/// État centré (erreur / vide / aucun résultat).
 class _CenteredState extends StatelessWidget {
   const _CenteredState({
     required this.icon,
@@ -1314,6 +1274,7 @@ class _CenteredState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = HomePalette.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
@@ -1336,7 +1297,7 @@ class _CenteredState extends StatelessWidget {
               style: GoogleFonts.poppins(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: HomePalette.text,
+                color: p.text,
               ),
             ),
             const SizedBox(height: 6),
@@ -1346,7 +1307,7 @@ class _CenteredState extends StatelessWidget {
               style: GoogleFonts.poppins(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w500,
-                color: HomePalette.text3,
+                color: p.text3,
                 height: 1.4,
               ),
             ),
@@ -1382,52 +1343,3 @@ class _CenteredState extends StatelessWidget {
     );
   }
 }
-
-/// Trait manuscrit (Â« swoosh Â») sous la phrase cursive de la maquette.
-class _SwooshPainter extends CustomPainter {
-  _SwooshPainter(this.color);
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round;
-
-    final path = Path()
-      ..moveTo(size.width * 0.05, size.height * 0.7)
-      ..quadraticBezierTo(
-        size.width * 0.5,
-        size.height * 1.6,
-        size.width * 0.97,
-        size.height * 0.15,
-      );
-    canvas.drawPath(path, paint);
-
-    // Petite pointe de flÃ¨che Ã  droite.
-    final tip = Path()
-      ..moveTo(size.width * 0.82, size.height * 0.45)
-      ..lineTo(size.width * 0.97, size.height * 0.15)
-      ..lineTo(size.width * 0.86, size.height * 0.12);
-    canvas.drawPath(tip, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _SwooshPainter oldDelegate) =>
-      oldDelegate.color != color;
-}
-
-
-
-
-
-
-
-
-
-
-
-
